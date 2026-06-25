@@ -1,0 +1,113 @@
+; ============================================================================
+; Akeeba Extract — Windows Installer (Inno Setup 6.x)
+; A cross-platform desktop application to extract Akeeba Backup archives
+;
+; Copyright (c) 2026 Nicholas K. Dionysopoulos / Akeeba Ltd
+; License: GNU General Public License version 3, or later
+;
+; Build instructions (run on Windows):
+;   1. Install Inno Setup 6: https://jrsoftware.org/isinfo.php
+;   2. Run `php vendor/bin/boson compile` to produce build/output/windows/amd64/*.
+;   3. Open this .iss file in the Inno Setup IDE, or from the command line:
+;      "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\windows-installer.iss
+;   4. The installer appears at: build\output\Akeeba-Extract-Setup.exe
+;
+; The compiler emits these files into build/output/windows/amd64/:
+;   akeeba-extract.exe           — the main application binary
+;   libboson-windows-x86_64.dll  — Boson WebView runtime DLL
+; ============================================================================
+
+#define AppName      "Akeeba Extract"
+#define AppVersion   "1.0.0"
+#define AppPublisher "Nicholas K. Dionysopoulos / Akeeba Ltd"
+#define AppURL       "https://github.com/akeeba/extract"
+#define AppExeName   "akeeba-extract.exe"
+#define AppDllName   "libboson-windows-x86_64.dll"
+#define BinDir       "..\build\output\windows\amd64"
+
+[Setup]
+; ---- Identity ----
+AppId={{A3B1C2D4-E5F6-7890-ABCD-EF1234567890}
+AppName={#AppName}
+AppVersion={#AppVersion}
+AppPublisher={#AppPublisher}
+AppPublisherURL={#AppURL}
+AppSupportURL={#AppURL}
+AppUpdatesURL={#AppURL}
+
+; ---- Output ----
+OutputDir=..\build\output
+OutputBaseFilename=Akeeba-Extract-Setup
+SetupIconFile=
+
+; ---- Install locations ----
+DefaultDirName={autopf}\{#AppName}
+DefaultGroupName={#AppName}
+DisableProgramGroupPage=yes
+
+; ---- Compression ----
+Compression=lzma2/ultra64
+SolidCompression=yes
+LZMAUseSeparateProcess=yes
+
+; ---- UI ----
+WizardStyle=modern
+WizardSizePercent=100
+
+; ---- Target ----
+; Requires 64-bit Windows (the Boson runtime is x86_64 only)
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
+MinVersion=10.0.17763
+
+; ---- Misc ----
+PrivilegesRequired=lowest
+PrivilegesRequiredOverridesAllowed=dialog
+UninstallDisplayName={#AppName}
+UninstallDisplayIcon={app}\{#AppExeName}
+ChangesAssociations=yes
+
+[Languages]
+Name: "english"; MessagesFile: "compiler:Default.isl"
+
+[Tasks]
+Name: "desktopicon";    Description: "Create a &desktop shortcut";    GroupDescription: "Additional shortcuts:"
+Name: "startupicon";   Description: "Launch automatically at &startup"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
+
+[Files]
+; Main binary
+Source: "{#BinDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Boson WebView runtime DLL — must be beside the .exe
+Source: "{#BinDir}\{#AppDllName}"; DestDir: "{app}"; Flags: ignoreversion
+
+[Icons]
+Name: "{group}\{#AppName}";              Filename: "{app}\{#AppExeName}"
+Name: "{group}\Uninstall {#AppName}";    Filename: "{uninstallexe}"
+Name: "{autodesktop}\{#AppName}";        Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{userstartup}\{#AppName}";        Filename: "{app}\{#AppExeName}"; Tasks: startupicon
+
+[Run]
+Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait postinstall skipifsilent
+
+[Registry]
+; Associate .jpa files with Akeeba Extract
+Root: HKCU; Subkey: "Software\Classes\.jpa";               ValueType: string; ValueName: ""; ValueData: "AkeebaExtract.Archive"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive"; ValueType: string; ValueName: ""; ValueData: "Akeeba Backup Archive"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
+
+; Associate .jps files
+Root: HKCU; Subkey: "Software\Classes\.jps";               ValueType: string; ValueName: ""; ValueData: "AkeebaExtract.EncryptedArchive"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive"; ValueType: string; ValueName: ""; ValueData: "Akeeba Encrypted Backup Archive"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
+
+[Code]
+// Optional: warn if WebView2 runtime is not installed (Boson uses OS WebView)
+function InitializeSetup(): Boolean;
+begin
+  Result := True;
+  // WebView2 has been included in Windows 10 21H2+ and all Windows 11 builds.
+  // If you need to target older Windows 10, prompt the user to install WebView2:
+  //   https://developer.microsoft.com/en-us/microsoft-edge/webview2/
+end;

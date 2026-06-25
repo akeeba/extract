@@ -1,0 +1,760 @@
+<?php
+/**
+ * Akeeba Restore
+ * An AJAX-powered archive extraction library for JPA, JPS and ZIP archives
+ *
+ * @package   restore
+ * @copyright Copyright (c)2008-2025 Nicholas K. Dionysopoulos / Akeeba Ltd
+ * @license   GNU General Public License version 3, or later
+ */
+
+/**
+ * The base class of unarchiver classes
+ */
+abstract class AKAbstractUnarchiver extends AKAbstractPart
+{
+	/** @var array List of the names of all archive parts */
+	public $archiveList = [];
+	/** @var int The total size of all archive parts */
+	public $totalSize = [];
+	/** @var array Which files to rename */
+	public $renameFiles = [];
+	/** @var array Which directories to rename */
+	public $renameDirs = [];
+	/** @var array Which files to skip */
+	public $skipFiles = [];
+	/** @var string Archive filename */
+	protected $filename = null;
+	/** @var integer Current archive part number */
+	protected $currentPartNumber = -1;
+	/** @var integer The offset inside the current part */
+	protected $currentPartOffset = 0;
+	/** @var bool Should I restore permissions? */
+	protected $flagRestorePermissions = false;
+	/** @var AKAbstractPostproc Post processing class */
+	protected $postProcEngine = null;
+	/** @var string Absolute path to prepend to extracted files */
+	protected $addPath = '';
+	/** @var string Absolute path to remove from extracted files */
+	protected $removePath = '';
+	/** @var integer Chunk size for processing */
+	protected $chunkSize = 524288;
+
+	/** @var resource File pointer to the current archive part file */
+	protected $fp = null;
+
+	/** @var int Run state when processing the current archive file */
+	protected $runState = null;
+
+	/** @var stdClass File header data, as read by the readFileHeader() method */
+	protected $fileHeader = null;
+
+	/** @var int How much of the uncompressed data we've read so far */
+	protected $dataReadLength = 0;
+
+	/** @var array Unwriteable files in these directories are always ignored and do not cause errors when not extracted */
+	protected $ignoreDirectories = [];
+
+	/**
+	 * Wakeup function, called whenever the class is unserialized
+	 */
+	public function __wakeup()
+	{
+		if ($this->currentPartNumber >= 0)
+		{
+			$this->fp = @fopen($this->archiveList[$this->currentPartNumber], 'r');
+
+			if ((is_resource($this->fp)) && ($this->currentPartOffset > 0))
+			{
+				@fseek($this->fp, $this->currentPartOffset);
+			}
+		}
+	}
+
+	/**
+	 * Sleep function, called whenever the class is serialized
+	 */
+	public function shutdown()
+	{
+		if (is_resource($this->fp))
+		{
+			$this->currentPartOffset = @ftell($this->fp);
+			@fclose($this->fp);
+		}
+	}
+
+	/**
+	 * Is this file or directory contained in a directory we've decided to ignore
+	 * write errors for? This is useful to let the extraction work despite write
+	 * errors in the log, logs and tmp directories which MIGHT be used by the system
+	 * on some low quality hosts and Plesk-powered hosts.
+	 *
+	 * @param   string $shortFilename The relative path of the file/directory in the package
+	 *
+	 * @return  boolean  True if it belongs in an ignored directory
+	 */
+	public function isIgnoredDirectory($shortFilename)
+	{
+		// return false;
+
+		if (substr($shortFilename, -1) == '/')
+		{
+			$check = rtrim($shortFilename, '/');
+		}
+		else
+		{
+			$check = dirname($shortFilename);
+		}
+
+		return in_array($check, $this->ignoreDirectories);
+	}
+
+	/**
+	 * Implements the abstract _prepare() method
+	 */
+	final protected function _prepare()
+	{
+		if (count($this->_parametersArray) > 0)
+		{
+			foreach ($this->_parametersArray as $key => $value)
+			{
+				switch ($key)
+				{
+					// Archive's absolute filename
+					case 'filename':
+						$this->filename = $value;
+
+						// Sanity check
+						if (!empty($value))
+						{
+							$value = strtolower($value);
+
+							if (strlen($value) > 6)
+							{
+								if (
+									(substr($value, 0, 7) == 'http://')
+									|| (substr($value, 0, 8) == 'https://')
+									|| (substr($value, 0, 6) == 'ftp://')
+									|| (substr($value, 0, 7) == 'ssh2://')
+									|| (substr($value, 0, 6) == 'ssl://')
+								)
+								{
+									$this->setState('error', 'Invalid archive location');
+								}
+							}
+						}
+
+
+						break;
+
+					// Should I restore permissions?
+					case 'restore_permissions':
+						$this->flagRestorePermissions = $value;
+						break;
+
+					// Should I use FTP?
+					case 'post_proc':
+						$this->postProcEngine = AKFactory::getpostProc($value);
+						break;
+
+					// Path to add in the beginning
+					case 'add_path':
+						$this->addPath = $value;
+						$this->addPath = str_replace('\\', '/', $this->addPath);
+						$this->addPath = rtrim($this->addPath, '/');
+						if (!empty($this->addPath))
+						{
+							$this->addPath .= '/';
+						}
+						break;
+
+					// Path to remove from the beginning
+					case 'remove_path':
+						$this->removePath = $value;
+						$this->removePath = str_replace('\\', '/', $this->removePath);
+						$this->removePath = rtrim($this->removePath, '/');
+						if (!empty($this->removePath))
+						{
+							$this->removePath .= '/';
+						}
+						break;
+
+					// Which files to rename (hash array)
+					case 'rename_files':
+						$this->renameFiles = $value;
+						break;
+
+					// Which files to rename (hash array)
+					case 'rename_dirs':
+						$this->renameDirs = $value;
+						break;
+
+					// Which files to skip (indexed array)
+					case 'skip_files':
+						$this->skipFiles = $value;
+						break;
+
+					// Which directories to ignore when we can't write files in them (indexed array)
+					case 'ignoredirectories':
+						$this->ignoreDirectories = $value;
+						break;
+				}
+			}
+		}
+
+		$this->scanArchives();
+
+		$this->readArchiveHeader();
+		$errMessage = $this->getError();
+		if (!empty($errMessage))
+		{
+			$this->setState('error', $errMessage);
+		}
+		else
+		{
+			$this->runState = AK_STATE_NOFILE;
+			$this->setState('prepared');
+		}
+	}
+
+	/**
+	 * Scans for archive parts
+	 */
+	private function scanArchives()
+	{
+		if (defined('KSDEBUG'))
+		{
+			@unlink('debug.txt');
+		}
+		debugMsg('Preparing to scan archives');
+
+		$privateArchiveList = [];
+
+		// Get the components of the archive filename
+		$dirname         = dirname($this->filename);
+		$base_extension  = $this->getBaseExtension();
+		$basename        = basename($this->filename, $base_extension);
+		$this->totalSize = 0;
+
+		// Scan for multiple parts until we don't find any more of them
+		$count             = 0;
+		$found             = true;
+		$this->archiveList = [];
+		while ($found)
+		{
+			++$count;
+			$extension = substr($base_extension, 0, 2) . sprintf('%02d', $count);
+			$filename  = $dirname . DIRECTORY_SEPARATOR . $basename . $extension;
+			$found     = file_exists($filename);
+			if ($found)
+			{
+				debugMsg('- Found archive ' . $filename);
+				// Add yet another part, with a numeric-appended filename
+				$this->archiveList[] = $filename;
+
+				$filesize = @filesize($filename);
+				$this->totalSize += $filesize;
+
+				$privateArchiveList[] = [$filename, $filesize];
+			}
+			else
+			{
+				debugMsg('- Found archive ' . $this->filename);
+				// Add the last part, with the regular extension
+				$this->archiveList[] = $this->filename;
+
+				$filename = $this->filename;
+				$filesize = @filesize($filename);
+				$this->totalSize += $filesize;
+
+				$privateArchiveList[] = [$filename, $filesize];
+			}
+		}
+		debugMsg('Total archive parts: ' . $count);
+
+		$this->currentPartNumber = -1;
+		$this->currentPartOffset = 0;
+		$this->runState          = AK_STATE_NOFILE;
+
+		// Send start of file notification
+		$message                     = new stdClass;
+		$message->type               = 'totalsize';
+		$message->content            = new stdClass;
+		$message->content->totalsize = $this->totalSize;
+		$message->content->filelist  = $privateArchiveList;
+		$this->notify($message);
+	}
+
+	/**
+	 * Returns the base extension of the file, e.g. '.jpa'
+	 *
+	 * @return string
+	 */
+	private function getBaseExtension()
+	{
+		static $baseextension;
+
+		if (empty($baseextension))
+		{
+			$basename      = basename($this->filename);
+			$lastdot       = strrpos($basename, '.');
+			$baseextension = substr($basename, $lastdot);
+		}
+
+		return $baseextension;
+	}
+
+	/**
+	 * Concrete classes are supposed to use this method in order to read the archive's header and
+	 * prepare themselves to the point of being ready to extract the first file.
+	 */
+	protected abstract function readArchiveHeader();
+
+	protected function _run()
+	{
+		if ($this->getState() == 'postrun')
+		{
+			return;
+		}
+
+		$this->setState('running');
+
+		$timer = AKFactory::getTimer();
+
+		$status = true;
+		while ($status && ($timer->getTimeLeft() > 0))
+		{
+			switch ($this->runState)
+			{
+				case AK_STATE_NOFILE:
+					debugMsg(self::class . '::_run() - Reading file header');
+					$status = $this->readFileHeader();
+					if ($status)
+					{
+						// Send start of file notification
+						$message                        = new stdClass;
+						$message->type                  = 'startfile';
+						$message->content               = new stdClass;
+						$message->content->realfile     = $this->fileHeader->file;
+						$message->content->file         = $this->fileHeader->file;
+						$message->content->uncompressed = $this->fileHeader->uncompressed;
+
+						if (array_key_exists('realfile', get_object_vars($this->fileHeader)))
+						{
+							$message->content->realfile = $this->fileHeader->realFile;
+						}
+
+						if (array_key_exists('compressed', get_object_vars($this->fileHeader)))
+						{
+							$message->content->compressed = $this->fileHeader->compressed;
+						}
+						else
+						{
+							$message->content->compressed = 0;
+						}
+
+						debugMsg(self::class . '::_run() - Preparing to extract ' . $message->content->realfile);
+
+						$this->notify($message);
+					}
+					else
+					{
+						debugMsg(self::class . '::_run() - Could not read file header');
+					}
+					break;
+
+				case AK_STATE_HEADER:
+				case AK_STATE_DATA:
+					debugMsg(self::class . '::_run() - Processing file data');
+					$status = $this->processFileData();
+					break;
+
+				case AK_STATE_DATAREAD:
+				case AK_STATE_POSTPROC:
+					debugMsg(self::class . '::_run() - Calling post-processing class');
+					$this->postProcEngine->timestamp = $this->fileHeader->timestamp;
+					$status                          = $this->postProcEngine->process();
+					$this->propagateFromObject($this->postProcEngine);
+					$this->runState = AK_STATE_DONE;
+					break;
+
+				case AK_STATE_DONE:
+				default:
+					if ($status)
+					{
+						debugMsg(self::class . '::_run() - Finished extracting file');
+						// Send end of file notification
+						$message          = new stdClass;
+						$message->type    = 'endfile';
+						$message->content = new stdClass;
+						if (array_key_exists('realfile', get_object_vars($this->fileHeader)))
+						{
+							$message->content->realfile = $this->fileHeader->realFile;
+						}
+						else
+						{
+							$message->content->realfile = $this->fileHeader->file;
+						}
+						$message->content->file = $this->fileHeader->file;
+						if (array_key_exists('compressed', get_object_vars($this->fileHeader)))
+						{
+							$message->content->compressed = $this->fileHeader->compressed;
+						}
+						else
+						{
+							$message->content->compressed = 0;
+						}
+						$message->content->uncompressed = $this->fileHeader->uncompressed;
+						$this->notify($message);
+					}
+					$this->runState = AK_STATE_NOFILE;
+
+					break;
+			}
+		}
+
+		$error = $this->getError();
+
+		if (!$status && ($this->runState == AK_STATE_NOFILE) && empty($error))
+		{
+			debugMsg(self::class . '::_run() - Just finished');
+			// We just finished
+			$this->setState('postrun');
+
+			// Reset internal state, prevents __wakeup from trying to open a non-existent file
+			$this->currentPartNumber = -1;
+		}
+		elseif (!empty($error))
+		{
+			debugMsg(self::class . '::_run() - Halted with an error:');
+			debugMsg($error);
+			$this->setState('error', $error);
+		}
+	}
+
+	/**
+	 * Concrete classes must use this method to read the file header
+	 *
+	 * @return bool True if reading the file was successful, false if an error occurred or we reached end of archive
+	 */
+	protected abstract function readFileHeader();
+
+	/**
+	 * Concrete classes must use this method to process file data. It must set $runState to AK_STATE_DATAREAD when
+	 * it's finished processing the file data.
+	 *
+	 * @return bool True if processing the file data was successful, false if an error occurred
+	 */
+	protected abstract function processFileData();
+
+	protected function _finalize()
+	{
+		// Nothing to do
+		$this->setState('finished');
+	}
+
+	/**
+	 * Opens the next part file for reading
+	 */
+	protected function nextFile()
+	{
+		debugMsg('Current part is ' . $this->currentPartNumber . '; opening the next part');
+		++$this->currentPartNumber;
+
+		if ($this->currentPartNumber > (count($this->archiveList) - 1))
+		{
+			$this->setState('postrun');
+
+			return false;
+		}
+		else
+		{
+			if (is_resource($this->fp))
+			{
+				@fclose($this->fp);
+			}
+			debugMsg('Opening file ' . $this->archiveList[$this->currentPartNumber]);
+			$this->fp = @fopen($this->archiveList[$this->currentPartNumber], 'r');
+			if ($this->fp === false)
+			{
+				debugMsg('Could not open file - crash imminent');
+				$this->setError(AKText::sprintf('ERR_COULD_NOT_OPEN_ARCHIVE_PART', $this->archiveList[$this->currentPartNumber]));
+			}
+			fseek($this->fp, 0);
+			$this->currentPartOffset = 0;
+
+			return true;
+		}
+	}
+
+	/**
+	 * Returns true if we have reached the end of file
+	 *
+	 * @param $local bool True to return EOF of the local file, false (default) to return if we have reached the end of
+	 *               the archive set
+	 *
+	 * @return bool True if we have reached End Of File
+	 */
+	protected function isEOF($local = false)
+	{
+		$eof = @feof($this->fp);
+
+		if (!$eof)
+		{
+			// Border case: right at the part's end (eeeek!!!). For the life of me, I don't understand why
+			// feof() doesn't report true. It expects the fp to be positioned *beyond* the EOF to report
+			// true. Incredible! :(
+			$position = @ftell($this->fp);
+			$filesize = @filesize($this->archiveList[$this->currentPartNumber]);
+			if ($filesize <= 0)
+			{
+				// 2Gb or more files on a 32 bit version of PHP tend to get screwed up. Meh.
+				$eof = false;
+			}
+			elseif ($position >= $filesize)
+			{
+				$eof = true;
+			}
+		}
+
+		if ($local)
+		{
+			return $eof;
+		}
+		else
+		{
+			return $eof && ($this->currentPartNumber >= (count($this->archiveList) - 1));
+		}
+	}
+
+	/**
+	 * Tries to make a directory user-writable so that we can write a file to it
+	 *
+	 * @param $path string A path to a file
+	 */
+	protected function setCorrectPermissions($path)
+	{
+		static $rootDir = null;
+
+		if (is_null($rootDir))
+		{
+			$rootDir = rtrim(AKFactory::get('kickstart.setup.destdir', ''), '/\\');
+		}
+
+		$directory = rtrim(dirname($path), '/\\');
+		if ($directory != $rootDir)
+		{
+			// Is this an unwritable directory?
+			if (!is_writeable($directory))
+			{
+				$this->postProcEngine->chmod($directory, 0755);
+			}
+		}
+		$this->postProcEngine->chmod($path, 0644);
+	}
+
+	/**
+	 * Reads data from the archive and notifies the observer with the 'reading' message
+	 *
+	 * @param $fp
+	 * @param $length
+	 */
+	protected function fread($fp, $length = null)
+	{
+		if (is_numeric($length))
+		{
+			if ($length > 0)
+			{
+				$data = fread($fp, $length);
+			}
+			else
+			{
+				$data = fread($fp, PHP_INT_MAX);
+			}
+		}
+		else
+		{
+			$data = fread($fp, PHP_INT_MAX);
+		}
+		if ($data === false)
+		{
+			$data = '';
+		}
+
+		// Send start of file notification
+		$message                  = new stdClass;
+		$message->type            = 'reading';
+		$message->content         = new stdClass;
+		$message->content->length = strlen($data);
+		$this->notify($message);
+
+		return $data;
+	}
+
+	/**
+	 * Removes the configured $removePath from the path $path
+	 *
+	 * @param   string $path The path to reduce
+	 *
+	 * @return  string  The reduced path
+	 */
+	protected function removePath($path)
+	{
+		if (empty($this->removePath))
+		{
+			return $path;
+		}
+
+		if (strpos($path, $this->removePath) === 0)
+		{
+			$path = substr($path, strlen($this->removePath));
+			$path = ltrim($path, '/\\');
+		}
+
+		return $path;
+	}
+
+	/**
+	 * Am I supposed to skip the extraction of the current file? This depends on
+	 *
+	 * @return bool
+	 */
+	protected function mustSkip()
+	{
+		static $isDryRun = null;
+
+		// List of files (and patterns) to extract
+		static $extractList = null;
+
+		// Internal cache of the last file we checked and whether it must be skipped
+		static $lastFileName = '';
+		static $mustSkip = false;
+
+		// Make sure the dry run flag is, indeed, populated
+		if (is_null($isDryRun))
+		{
+			$isDryRun = AKFactory::get('kickstart.setup.dryrun', '0');
+		}
+
+		// If it's a Kickstart dry run we have to skip the extraction of the file
+		if ($isDryRun)
+		{
+			return true;
+		}
+
+		// Make sure I have a list of files and patterns to extract
+		if (is_null($extractList))
+		{
+			$extractList = $this->getExtractList();
+		}
+
+		// No list of files to extract is given; we must extract everything.
+		if (empty($extractList))
+		{
+			return false;
+		}
+
+		// I am asked about the same file again. Return the cached result.
+		if ($this->fileHeader->file == $lastFileName)
+		{
+			return $mustSkip;
+		}
+
+		// Does the current file match the extract patterns or not?
+		$lastFileName = $this->fileHeader->file;
+		$lastFileName = (strpos($lastFileName, $this->addPath) === 0) ? substr($lastFileName, strlen(rtrim($this->addPath, "\\/")) + 1) : $lastFileName;
+		$mustSkip     = !$this->matchesGlobPatterns($lastFileName, $extractList);
+
+		return $mustSkip;
+	}
+
+	protected function fuzzySignatureSearch($requiredSignatures, $sigLen)
+	{
+		if (!is_array($requiredSignatures))
+		{
+			$requiredSignatures = [$requiredSignatures];
+		}
+
+		fseek($this->fp, 0, SEEK_SET);
+
+		$stuff  = $this->fread($this->fp, 131072);
+		$maxPos = function_exists('mb_strlen') ? mb_strlen($stuff, 'binary') : strlen($stuff);
+
+		for ($i = 0; $i < $maxPos; $i++)
+		{
+			foreach ($requiredSignatures as $signature)
+			{
+				$sigBinary = function_exists('mb_substr') ? mb_substr($stuff, $i, $sigLen, 'binary') : substr($stuff, $i, $sigLen);
+
+				if ($sigBinary === $signature)
+				{
+					fseek($this->fp, $i, SEEK_SET);
+
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
+	 * Get the list of files / folders to extract. The list can contain filenames or glob patterns.
+	 *
+	 * @return  array
+	 */
+	private function getExtractList()
+	{
+		$rawList = AKFactory::get('kickstart.setup.extract_list', '');
+
+		// Sometimes I could get an array, e.g. from CLI
+		if (is_array($rawList))
+		{
+			$rawList = implode("\n", $rawList);
+		}
+
+		// Remove any whitespace
+		$rawList = trim($rawList);
+
+		if (empty($rawList))
+		{
+			return [];
+		}
+
+		// Convert commas to newlines so we can support both ways to express lists
+		$rawList = str_replace(",", "\n", $rawList);
+		$rawList = trim($rawList);
+
+		// Convert the list to an array and clean it
+		$list = explode("\n", $rawList);
+		$list = array_map('trim', $list);
+
+		return array_unique($list);
+	}
+
+	/**
+	 * Tests whether the item $item matches the list of shell patterns $list.
+	 *
+	 * @param   string  $item  The file name to test
+	 * @param   array   $list  The list of glob patterns to match
+	 *
+	 * @return  bool
+	 */
+	private function matchesGlobPatterns($item, array $list)
+	{
+		if (empty($list))
+		{
+			return true;
+		}
+
+		foreach ($list as $pattern)
+		{
+			if (fnmatch($pattern, $item))
+			{
+				return true;
+			}
+		}
+
+		return false;
+	}
+}

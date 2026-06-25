@@ -1,0 +1,19 @@
+# Composer dependencies
+/vendor/
+
+# Build & packaging output
+/build/output/
+/build/*.dmg
+/build/*.exe
+/*.app
+/dist/
+
+# Planning scratch (internal, not part of the deliverable)
+/.plans/
+
+# IDE / OS cruft
+/.idea/
+/.vscode/
+.DS_Store
+Thumbs.db
+*.log

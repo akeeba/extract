@@ -1,0 +1,37 @@
+{
+	"name": "akeeba/extract",
+	"description": "Akeeba Extract – A cross-platform desktop application to extract Akeeba Backup archives (JPA, JPS, ZIP)",
+	"type": "project",
+	"license": "GPL-3.0-or-later",
+	"authors": [
+		{
+			"name": "Nicholas K. Dionysopoulos",
+			"homepage": "https://www.akeeba.com",
+			"role": "Lead Developer"
+		}
+	],
+	"require": {
+		"php": "^8.4",
+		"ext-ffi": "*",
+		"ext-openssl": "*",
+		"ext-zlib": "*",
+		"boson-php/runtime": "^0.19"
+	},
+	"require-dev": {
+		"boson-php/compiler": "^0.19"
+	},
+	"suggest": {
+		"ext-bz2": "Required to extract archives that use BZip2 compression"
+	},
+	"autoload": {
+		"psr-4": {
+			"Akeeba\\Extract\\": "src/"
+		}
+	},
+	"config": {
+		"optimize-autoloader": true,
+		"sort-packages": true
+	},
+	"minimum-stability": "dev",
+	"prefer-stable": true
+}

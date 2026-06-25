@@ -1,0 +1,166 @@
+<?php
+/**
+ * Akeeba Restore
+ * An AJAX-powered archive extraction library for JPA, JPS and ZIP archives
+ *
+ * @package   restore
+ * @copyright Copyright (c)2008-2025 Nicholas K. Dionysopoulos / Akeeba Ltd
+ * @license   GNU General Public License version 3, or later
+ */
+
+define('_AKEEBA_RESTORATION', 1);
+defined('DS') or define('DS', DIRECTORY_SEPARATOR);
+
+// Unarchiver run states
+define('AK_STATE_NOFILE', 0); // File header not read yet
+define('AK_STATE_HEADER', 1); // File header read; ready to process data
+define('AK_STATE_DATA', 2); // Processing file data
+define('AK_STATE_DATAREAD', 3); // Finished processing file data; ready to post-process
+define('AK_STATE_POSTPROC', 4); // Post-processing
+define('AK_STATE_DONE', 5); // Done with post-processing
+
+/* Windows system detection */
+if (!defined('_AKEEBA_IS_WINDOWS'))
+{
+	if (function_exists('php_uname'))
+	{
+		define('_AKEEBA_IS_WINDOWS', stristr(php_uname(), 'windows'));
+	}
+	else
+	{
+		define('_AKEEBA_IS_WINDOWS', DIRECTORY_SEPARATOR == '\\');
+	}
+}
+
+// Get the file's root
+if (!defined('KSROOTDIR'))
+{
+	define('KSROOTDIR', __DIR__);
+}
+if (!defined('KSLANGDIR'))
+{
+	define('KSLANGDIR', KSROOTDIR);
+}
+
+// Make sure the locale is correct for basename() to work
+if (function_exists('setlocale'))
+{
+	@setlocale(LC_ALL, 'en_US.UTF8');
+}
+
+// fnmatch not available on non-POSIX systems
+// Thanks to soywiz@php.net for this usefull alternative function [http://gr2.php.net/fnmatch]
+if (!function_exists('fnmatch'))
+{
+	function fnmatch($pattern, $string)
+	{
+		return @preg_match(
+			'/^' . strtr(addcslashes($pattern, '/\\.+^$(){}=!<>|'),
+				['*' => '.*', '?' => '.?']) . '$/i', $string
+		);
+	}
+}
+
+// Unicode-safe binary data length function
+if (!function_exists('akstringlen'))
+{
+	if (function_exists('mb_strlen'))
+	{
+		function akstringlen($string)
+		{
+			return mb_strlen($string, '8bit');
+		}
+	}
+	else
+	{
+		function akstringlen($string)
+		{
+			return strlen($string);
+		}
+	}
+}
+
+if (!function_exists('aksubstr'))
+{
+	if (function_exists('mb_strlen'))
+	{
+		function aksubstr($string, $start, $length = null)
+		{
+			return mb_substr($string, $start, $length, '8bit');
+		}
+	}
+	else
+	{
+		function aksubstr($string, $start, $length = null)
+		{
+			return substr($string, $start, $length);
+		}
+	}
+}
+
+/**
+ * Gets a query parameter from GET or POST data
+ *
+ * @param $key
+ * @param $default
+ */
+function getQueryParam($key, $default = null)
+{
+	$value = $default;
+
+	if (array_key_exists($key, $_REQUEST))
+	{
+		$value = $_REQUEST[$key];
+	}
+
+	return $value;
+}
+
+// Debugging function
+function debugMsg($msg)
+{
+	if (!defined('KSDEBUG'))
+	{
+		return;
+	}
+
+	$fp = fopen('debug.txt', 'a');
+
+	fwrite($fp, $msg . PHP_EOL);
+	fclose($fp);
+
+	// Echo to stdout if KSDEBUGCLI is defined
+	if (defined('KSDEBUGCLI'))
+	{
+		echo $msg . "\n";
+	}
+}
+
+/**
+ * Invalidate a file in OPcache.
+ *
+ * Only applies if the file has a .php extension.
+ *
+ * @param   string  $file  The filepath to clear from OPcache
+ *
+ * @return  boolean
+ * @since   7.1.0
+ */
+function clearFileInOPCache($file)
+{
+	static $hasOpCache = null;
+
+	if (is_null($hasOpCache))
+	{
+		$hasOpCache = ini_get('opcache.enable')
+			&& function_exists('opcache_invalidate')
+			&& (!ini_get('opcache.restrict_api') || stripos(realpath($_SERVER['SCRIPT_FILENAME']), ini_get('opcache.restrict_api')) === 0);
+	}
+
+	if ($hasOpCache && (strtolower(substr($file, -4)) === '.php'))
+	{
+		return opcache_invalidate($file, true);
+	}
+
+	return false;
+}

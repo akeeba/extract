@@ -1,0 +1,69 @@
+{
+    "$schema": "./vendor/boson-php/compiler/resources/boson.schema.json",
+    "name": "akeeba-extract",
+    "entrypoint": "index.php",
+    "output": "./build/output",
+    "target": [
+        {
+            "type": "macos",
+            "arch": "arm64"
+        },
+        {
+            "type": "macos",
+            "arch": "amd64"
+        },
+        {
+            "type": "windows",
+            "arch": "amd64"
+        },
+        {
+            "type": "linux",
+            "arch": "amd64"
+        },
+        {
+            "type": "phar"
+        }
+    ],
+    "extensions": [
+        "openssl",
+        "zlib",
+        "mbstring"
+    ],
+    "mount": [
+        "public"
+    ],
+    "build": {
+        "files": [
+            "index.php",
+            "src/Bootstrap.php"
+        ],
+        "finder": [
+            {
+                "directory": "src",
+                "name": "*.php"
+            },
+            {
+                "directory": "engine",
+                "name": "*.php"
+            },
+            {
+                "directory": "vendor",
+                "not-directory": [
+                    "vendor/boson-php/compiler",
+                    "vendor/bin"
+                ],
+                "name": "*.php",
+                "not-name": [
+                    "*Test.php",
+                    "*TestCase.php",
+                    ".phpstorm.meta.php"
+                ]
+            }
+        ]
+    },
+    "ini": {
+        "memory_limit": "256M",
+        "opcache.enable": false,
+        "opcache.enable_cli": false
+    }
+}

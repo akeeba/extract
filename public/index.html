@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<!--
+  Akeeba Extract
+  A cross-platform desktop application to extract Akeeba Backup archives (JPA, JPS, ZIP)
+
+  @package   akeeba-extract
+  @copyright Copyright (c)2026 Nicholas K. Dionysopoulos / Akeeba Ltd
+  @license   GNU General Public License version 3, or later
+-->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Akeeba Extract</title>
+  <link rel="stylesheet" href="app.css">
+</head>
+<body>
+  <main class="shell">
+    <div class="card">
+
+      <!-- Archive file -->
+      <div class="field">
+        <label for="archive-path">Archive file</label>
+        <div class="field-row">
+          <input type="text" id="archive-path" readonly placeholder="Select a .jpa, .jps or .zip archive…">
+          <button type="button" class="btn-secondary" id="btn-browse-archive">Browse…</button>
+        </div>
+      </div>
+
+      <!-- Output folder -->
+      <div class="field">
+        <label for="output-dir">Output folder</label>
+        <div class="field-row">
+          <input type="text" id="output-dir" placeholder="Destination folder for extracted files…">
+          <button type="button" class="btn-secondary" id="btn-browse-output">Browse…</button>
+        </div>
+      </div>
+
+      <!-- Password (JPS only) -->
+      <div class="field hidden" id="password-field">
+        <label for="archive-password">Password</label>
+        <div class="field-row">
+          <input type="password" id="archive-password" placeholder="Enter decryption password…">
+        </div>
+        <span class="field-hint">Required for encrypted JPS archives.</span>
+      </div>
+
+    </div><!-- /.card -->
+
+    <!-- Action buttons -->
+    <div class="action-row">
+      <button type="button" class="btn-danger hidden" id="btn-cancel">Cancel</button>
+      <button type="button" class="btn-primary" id="btn-start" disabled>Start</button>
+    </div>
+
+    <!-- Progress -->
+    <div class="progress-section">
+      <progress id="extract-progress" value="0" max="100"></progress>
+      <p class="status-line" id="status-line"></p>
+    </div>
+
+    <!-- Result areas -->
+    <div class="result-area result-success hidden" id="result-success" role="status">
+      <span id="result-success-msg"></span>
+      <button type="button" class="btn-open-folder hidden" id="btn-open-folder">Open Output Folder</button>
+    </div>
+    <div class="result-area result-cancelled hidden" id="result-cancelled" role="status">
+      Extraction was cancelled. Any partially extracted files remain in the output folder.
+    </div>
+    <div class="result-area result-error hidden" id="result-error" role="alert"></div>
+
+    <!-- Warnings (collapsible, only shown when engine emits warnings) -->
+    <details class="warnings-area hidden" id="warnings-area">
+      <summary id="warnings-summary">Warnings (0)</summary>
+      <ul id="warnings-list"></ul>
+    </details>
+
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>
