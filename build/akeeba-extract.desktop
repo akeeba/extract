@@ -1,0 +1,16 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=Akeeba Extract
+GenericName=Backup Archive Extractor
+Comment=Extract Akeeba Backup (JPA/JPS) and ZIP archives
+# Resolved to an absolute path by install.sh; "akeeba-extract" alone also works
+# once the binary is on $PATH.
+Exec=akeeba-extract %f
+# Icon name (no extension): resolves to akeeba-extract.png once it is placed in
+# an icon theme directory (e.g. ~/.local/share/icons/hicolor/256x256/apps/).
+Icon=akeeba-extract
+Terminal=false
+Categories=Utility;Archiving;
+MimeType=application/x-akeeba-backup;
+Keywords=akeeba;backup;jpa;jps;archive;extract;restore;

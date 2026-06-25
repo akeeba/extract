@@ -23,6 +23,7 @@
 #define AppURL       "https://github.com/akeeba/extract"
 #define AppExeName   "akeeba-extract.exe"
 #define AppDllName   "libboson-windows-x86_64.dll"
+#define AppIcon      "extract.ico"
 #define BinDir       "..\build\output\windows\amd64"
 
 [Setup]
@@ -38,7 +39,8 @@ AppUpdatesURL={#AppURL}
 ; ---- Output ----
 OutputDir=..\build\output
 OutputBaseFilename=Akeeba-Extract-Setup
-SetupIconFile=
+; Installer/uninstaller chrome icon (this .iss lives in build/, beside the .ico)
+SetupIconFile={#AppIcon}
 
 ; ---- Install locations ----
 DefaultDirName={autopf}\{#AppName}
@@ -64,7 +66,7 @@ MinVersion=10.0.17763
 PrivilegesRequired=lowest
 PrivilegesRequiredOverridesAllowed=dialog
 UninstallDisplayName={#AppName}
-UninstallDisplayIcon={app}\{#AppExeName}
+UninstallDisplayIcon={app}\{#AppIcon}
 ChangesAssociations=yes
 
 [Languages]
@@ -79,11 +81,14 @@ Name: "startupicon";   Description: "Launch automatically at &startup"; GroupDes
 Source: "{#BinDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Boson WebView runtime DLL — must be beside the .exe
 Source: "{#BinDir}\{#AppDllName}"; DestDir: "{app}"; Flags: ignoreversion
+; Application icon — installed so shortcuts and file associations can show it
+; (the Boson-compiled .exe carries a generic icon).
+Source: "{#AppIcon}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#AppName}";              Filename: "{app}\{#AppExeName}"
+Name: "{group}\{#AppName}";              Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppIcon}"
 Name: "{group}\Uninstall {#AppName}";    Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#AppName}";        Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{autodesktop}\{#AppName}";        Filename: "{app}\{#AppExeName}"; IconFilename: "{app}\{#AppIcon}"; Tasks: desktopicon
 Name: "{userstartup}\{#AppName}";        Filename: "{app}\{#AppExeName}"; Tasks: startupicon
 
 [Run]
@@ -93,13 +98,13 @@ Filename: "{app}\{#AppExeName}"; Description: "Launch {#AppName}"; Flags: nowait
 ; Associate .jpa files with Akeeba Extract
 Root: HKCU; Subkey: "Software\Classes\.jpa";               ValueType: string; ValueName: ""; ValueData: "AkeebaExtract.Archive"; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive"; ValueType: string; ValueName: ""; ValueData: "Akeeba Backup Archive"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppIcon},0"
 Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.Archive\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 
 ; Associate .jps files
 Root: HKCU; Subkey: "Software\Classes\.jps";               ValueType: string; ValueName: ""; ValueData: "AkeebaExtract.EncryptedArchive"; Flags: uninsdeletevalue
 Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive"; ValueType: string; ValueName: ""; ValueData: "Akeeba Encrypted Backup Archive"; Flags: uninsdeletekey
-Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#AppIcon},0"
 Root: HKCU; Subkey: "Software\Classes\AkeebaExtract.EncryptedArchive\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#AppExeName}"" ""%1"""
 
 [Code]

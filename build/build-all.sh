@@ -96,6 +96,14 @@ if [[ -f "$LINUX_BIN" ]]; then
     STAGE="$OUT/.stage-linux/akeeba-extract"
     rm -rf "$OUT/.stage-linux"; mkdir -p "$STAGE"
     cp -R "$OUT/linux/amd64/." "$STAGE/"
+
+    # Desktop integration: ship the icon, a .desktop launcher and an installer
+    # so users get the Akeeba Extract icon in their menus (see build/linux-install.sh).
+    cp "build/extract.png"             "$STAGE/akeeba-extract.png"
+    cp "build/akeeba-extract.desktop"  "$STAGE/akeeba-extract.desktop"
+    cp "build/linux-install.sh"        "$STAGE/install.sh"
+    chmod +x "$STAGE/install.sh"
+
     TGZ="$OUT/Akeeba-Extract-linux-amd64.tar.gz"
     rm -f "$TGZ"
     if tar -czf "$TGZ" -C "$OUT/.stage-linux" akeeba-extract; then
@@ -127,6 +135,7 @@ if [[ -f "$WIN_BIN" ]]; then
             "-DSRCDIR=$PROJECT_ROOT/$OUT/windows/amd64" \
             "-DOUTFILE=$PROJECT_ROOT/$OUT/Akeeba-Extract-Setup.exe" \
             "-DLICENSEFILE=$PROJECT_ROOT/LICENSE.txt" \
+            "-DICONFILE=$PROJECT_ROOT/build/extract.ico" \
             "-DAPPVERSION=$APPVERSION" \
             build/windows-installer.nsi; then
             PRODUCED+=("$OUT/Akeeba-Extract-Setup.exe")
@@ -148,6 +157,7 @@ if [[ -f "$WIN_BIN" ]]; then
         STAGE="$OUT/.stage-win/Akeeba Extract"
         rm -rf "$OUT/.stage-win"; mkdir -p "$STAGE"
         cp -R "$OUT/windows/amd64/." "$STAGE/"
+        cp "build/extract.ico" "$STAGE/extract.ico"
         ZIP_OUT="$OUT/Akeeba-Extract-windows-amd64.zip"
         rm -f "$ZIP_OUT"
         if command -v zip >/dev/null 2>&1; then

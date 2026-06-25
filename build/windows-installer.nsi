@@ -44,13 +44,27 @@ Unicode true
 !ifndef LICENSEFILE
   !define LICENSEFILE "${__FILEDIR__}/../LICENSE.txt"
 !endif
+; Application .ico. makensis chdir's into this script's folder (build/), so the
+; bare filename resolves there; build-all.sh passes an absolute path via -D.
+!ifndef ICONFILE
+  !define ICONFILE "extract.ico"
+!endif
 
 !define APPNAME    "Akeeba Extract"
 !define PUBLISHER  "Nicholas K. Dionysopoulos / Akeeba Ltd"
 !define APPURL     "https://github.com/akeeba/extract"
 !define APPEXE     "akeeba-extract.exe"
 !define APPDLL     "libboson-windows-x86_64.dll"
+!define APPICON    "extract.ico"
 !define REGUNINST  "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
+
+; Application icon (sits beside this script in build/). Used for the installer
+; and uninstaller chrome, and installed beside the .exe so shortcuts, file
+; associations and Add/Remove Programs all show the Akeeba Extract icon.
+; (The Boson-compiled .exe carries a generic icon; bundling the .ico and
+; pointing shortcuts/associations at it gives the app its real icon.)
+!define MUI_ICON   "${ICONFILE}"
+!define MUI_UNICON "${ICONFILE}"
 
 ; ---- Installer attributes --------------------------------------------------
 Name "${APPNAME}"
@@ -88,6 +102,7 @@ Section "Install"
     SetOutPath "$INSTDIR"
     File "${SRCDIR}/${APPEXE}"
     File "${SRCDIR}/${APPDLL}"
+    File "/oname=${APPICON}" "${ICONFILE}"
 
     ; The UI assets must sit next to the executable (the runtime mounts public/
     ; relative to the binary; without it the app shows a 404).
@@ -97,14 +112,14 @@ Section "Install"
     ; Shortcuts
     SetOutPath "$INSTDIR"
     CreateDirectory "$SMPROGRAMS\${APPNAME}"
-    CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\${APPEXE}"
+    CreateShortCut "$SMPROGRAMS\${APPNAME}\${APPNAME}.lnk" "$INSTDIR\${APPEXE}" "" "$INSTDIR\${APPICON}" 0
     CreateShortCut "$SMPROGRAMS\${APPNAME}\Uninstall ${APPNAME}.lnk" "$INSTDIR\uninstall.exe"
 
     ; File associations (.jpa / .jps), per-user
     WriteRegStr HKCU "Software\Classes\.jpa" "" "AkeebaExtract.Archive"
     WriteRegStr HKCU "Software\Classes\.jps" "" "AkeebaExtract.Archive"
     WriteRegStr HKCU "Software\Classes\AkeebaExtract.Archive" "" "Akeeba Backup Archive"
-    WriteRegStr HKCU "Software\Classes\AkeebaExtract.Archive\DefaultIcon" "" "$INSTDIR\${APPEXE},0"
+    WriteRegStr HKCU "Software\Classes\AkeebaExtract.Archive\DefaultIcon" "" "$INSTDIR\${APPICON},0"
     WriteRegStr HKCU "Software\Classes\AkeebaExtract.Archive\shell\open\command" "" '"$INSTDIR\${APPEXE}" "%1"'
 
     ; Remember install dir + register uninstaller in Add/Remove Programs
@@ -113,7 +128,7 @@ Section "Install"
     WriteRegStr HKCU "${REGUNINST}" "DisplayVersion"  "${APPVERSION}"
     WriteRegStr HKCU "${REGUNINST}" "Publisher"       "${PUBLISHER}"
     WriteRegStr HKCU "${REGUNINST}" "URLInfoAbout"    "${APPURL}"
-    WriteRegStr HKCU "${REGUNINST}" "DisplayIcon"     "$INSTDIR\${APPEXE}"
+    WriteRegStr HKCU "${REGUNINST}" "DisplayIcon"     "$INSTDIR\${APPICON}"
     WriteRegStr HKCU "${REGUNINST}" "UninstallString" "$INSTDIR\uninstall.exe"
     WriteRegDWORD HKCU "${REGUNINST}" "NoModify" 1
     WriteRegDWORD HKCU "${REGUNINST}" "NoRepair" 1
@@ -125,6 +140,7 @@ SectionEnd
 Section "Uninstall"
     Delete "$INSTDIR\${APPEXE}"
     Delete "$INSTDIR\${APPDLL}"
+    Delete "$INSTDIR\${APPICON}"
     RMDir /r "$INSTDIR\public"
     Delete "$INSTDIR\uninstall.exe"
     RMDir "$INSTDIR"
