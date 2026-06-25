@@ -1,60 +1,59 @@
 # Akeeba Extract
 
-A simple, cross-platform desktop application that extracts **Akeeba Backup** archives —
-**JPA**, encrypted **JPS**, and standard **ZIP** — on macOS, Windows, and Linux.
+Extracts **Akeeba Backup** archives on your desktop.
 
-The interface is deliberately minimal: pick the archive, choose an output folder (defaults to
-the archive's own folder), enter a password if the archive is an encrypted JPS, press **Start**,
-and watch the progress bar. When extraction completes you can open the output folder directly
-from the app.
+> [!IMPORTANT]
+> This repository is still in a Technology Preview stage. Use at your own risk.
 
-The extraction engine is the battle-tested unarchiver from
-[Akeeba Kickstart](https://github.com/akeeba/kickstart), reused here behind a native desktop
-GUI built with [Boson](https://bosonphp.com) (a PHP runtime paired with the operating
-system's native WebView).
+This application supports **JPA**, encrypted **JPS**, and standard **ZIP**. It is cross-platform; it runs on macOS, Windows, and Linux.
+
+The interface is deliberately minimal: pick the archive, choose an output folder (defaults to the archive's own folder), enter a password if the archive is an encrypted JPS, press **Start**, and watch the progress bar. When extraction completes you can open the output folder directly from the app.
+
+The extraction engine is the battle-tested unarchiver from[Akeeba Kickstart](https://github.com/akeeba/kickstart), reused here behind a native desktop GUI built with [Boson](https://bosonphp.com) (a PHP runtime paired with the operating system's native WebView).
 
 ## Features
 
-- Extracts JPA, JPS (AES-encrypted, password-protected), and ZIP archives.
-- Handles multi-part archives automatically (`.jpa` + `.j01`, `.j02`, …).
-- Native file/folder pickers and a live progress bar.
-- **Open Output Folder** button on completion for quick access to extracted files.
-- Clean error messages for common failure cases: corrupt archive, wrong password,
-  unwritable destination, missing multi-part file, user cancel.
-- Engine warnings surfaced non-intrusively in a collapsible area.
-- Single self-contained binary per platform — no PHP installation required by end users.
+* Extracts JPA, JPS (AES-encrypted, password-protected), and ZIP archives.
+* Handles multi-part archives automatically (`.jpa` + `.j01`, `.j02`, …).
+* **Selective extraction:** extract only the files you need by entering glob patterns, or use the built-in archive browser to pick files and folders from a tree and have the patterns filled in for you.
+* Native file/folder pickers and a live progress bar.
+* **Open Output Folder** button on completion for quick access to extracted files.
+* Clean error messages for common failure cases: corrupt archive, wrong password, unwritable destination, missing multi-part file, user cancel.
+* Engine warnings surfaced non-intrusively in a collapsible area.
+* Single self-contained binary per platform — no PHP installation required by end users.
 
 ## Usage
 
 1. Launch **Akeeba Extract**. You can pick the archive in any of three ways:
    - Click **Browse…** next to *Archive file* and choose your `.jpa`, `.jps`, or `.zip` file.
-   - **Drag and drop** an archive onto the window.
-   - **Open the app with the archive as an argument** — e.g. via a Windows/Linux
-     file association or `akeeba-extract /path/to/backup.jpa` from a terminal.
+   - **Drag and drop** an archive onto the window (does not work on macOS).
+   - **Open the app with the archive as an argument** — e.g. via a Windows/Linux file association or `akeeba-extract /path/to/backup.jpa` from a terminal.
 2. The *Output folder* defaults to the archive's directory; click **Browse…** to change it.
 3. For an encrypted **JPS** archive, type the password in the *Password* field that appears.
-4. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
-5. On success, click **Open Output Folder** to open the destination in your file manager.
+4. *(Optional)* To extract only some of the archive, use the **Files to extract** box. Type one
+   [glob pattern](https://en.wikipedia.org/wiki/Glob_(programming)) per line (e.g. `images/*` or
+   `config/settings.php`), or click **Pick a file or directory…** to browse the archive contents in a
+   tree, tick the files/folders you want, and press **Insert**. Picking a folder inserts a `folder/*`
+   pattern; picking a file inserts its path verbatim. Leave the box empty to extract everything.
+5. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
+6. On success, click **Open Output Folder** to open the destination in your file manager.
 
+> [!TIP]
 > Always select the **main** archive file (`.jpa` / `.jps` / `.zip`). Multi-part pieces
 > (`.j01`, `.j02`, … / `.z01`, …) are discovered and read automatically.
->
-> **How each open method behaves per platform:**
->
-> - **Browse… (file picker):** works on macOS, Windows, and Linux.
-> - **Drag-and-drop:** works on Windows and Linux. **Not available on macOS** — its system
->   WebView (WKWebView) hands the page only the dropped file's contents, never its path, so
->   the app can't locate the archive. The window shows a clear message pointing you to
->   Browse… if you drop a file there.
-> - **Launch with a file argument** (file association or `akeeba-extract /path/to/archive.jpa`):
->   works on Windows and Linux, and from a macOS terminal. macOS *Finder* file associations
->   aren't wired up (they use Apple Events rather than argv).
+
+
+### Open file behaviour per platform
+
+- **Browse… (file picker):** works on macOS, Windows, and Linux. On macOS you will be able to select files which are not backup archives due to an OS limitation.
+- **Drag-and-drop:** works on Windows and Linux. **Not available on macOS** — its system WebView (WKWebView) hands the page only the dropped file's contents, never its path, so the app can't locate the archive. The window shows a clear message pointing you to Browse… if you drop a file there.
+- **Launch with a file argument** (file association or `akeeba-extract /path/to/archive.jpa`): works on Windows and Linux, and from a macOS terminal. macOS *Finder* file associations aren't wired up (they use Apple Events rather than argv).
 
 ## Building from source
 
 Requirements (development machine):
 
-- PHP **8.4+** with the `ffi`, `openssl`, and `zlib` extensions (`bz2` recommended).
+- PHP **8.4+** with the `ffi`, `openssl`, and `zlib` extensions (`bz2` is optional as we never allowed creating backup archives using this compression method).
 - [Composer](https://getcomposer.org).
 - Boson compiler (`boson-php/compiler`, installed via Composer). macOS 14+ for development.
 
@@ -85,21 +84,11 @@ platform's distributable into `build/output/`:
 
 Notes:
 
-- The same pipeline also runs **automatically after `composer update`** (wired
-  via the `post-update-cmd` Composer hook).
-- The first compile downloads the Boson runtime stubs (~150 MB total) and needs
-  network access; subsequent runs use the cache.
-- `.app`/`.dmg` packaging only happens on a macOS host (it uses `hdiutil`).
-- **Windows installer:** the pipeline builds `Akeeba-Extract-Setup.exe` from
-  `build/windows-installer.nsi` using **NSIS**, whose `makensis` compiler runs
-  natively on macOS and Linux — so the installer cross-compiles from your dev
-  machine with no Wine/Docker/Windows host. Install it once with
-  `brew install makensis` (macOS) or your distro's `nsis` package (Linux). If
-  `makensis` is absent, the pipeline falls back to Inno Setup's `iscc` (if
-  present, e.g. on Windows, using `build/windows-installer.iss`), and failing
-  that, a portable `Akeeba-Extract-windows-amd64.zip`.
-- If dev dependencies are absent (e.g. `composer update --no-dev`), the build
-  step detects the missing compiler and skips cleanly without failing.
+* The same pipeline also runs **automatically after `composer update`** (wired via the `post-update-cmd` Composer hook).
+* The first compile downloads the Boson runtime stubs (~150 MB total) and needs network access; subsequent runs use the cache.
+* `.app`/`.dmg` packaging only happens on a macOS host (it uses `hdiutil`).
+* **Windows installer:** the pipeline builds `Akeeba-Extract-Setup.exe` from`build/windows-installer.nsi` using **NSIS**, whose `makensis` compiler runs natively on macOS and Linux — so the installer cross-compiles from your dev machine with no Wine/Docker/Windows host. Install it once with`brew install makensis` (macOS) or your distro's `nsis` package (Linux). If `makensis` is absent, the pipeline falls back to Inno Setup's `iscc` (if present, e.g. on Windows, using `build/windows-installer.iss`), and failing that, a portable `Akeeba-Extract-windows-amd64.zip`.
+* If dev dependencies are absent (e.g. `composer update --no-dev`), the build step detects the missing compiler and skips cleanly without failing.
 
 The individual packaging scripts can also be run by hand:
 
@@ -123,28 +112,35 @@ php vendor/bin/boson compile     # compile all targets only
 
 ### Windows installer
 
-The Inno Setup script `build/windows-installer.iss` creates a proper Windows installer.
-Build it on a Windows machine with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
+The build pipeline produces a proper Windows installer, `build/output/Akeeba-Extract-Setup.exe`.
+
+**Preferred — NSIS (cross-compiles from any OS).** The NSIS `makensis` compiler runs
+natively on macOS and Linux, so the installer is built from `build/windows-installer.nsi`
+without a Windows host. Install it once (`brew install makensis` on macOS, your distro's
+`nsis` package on Linux) and `build/build-all.sh` picks it up automatically. To run it by hand:
+
+```bash
+php vendor/bin/boson compile
+makensis -V2 build/windows-installer.nsi
+```
+
+**Fallback — Inno Setup (Windows only).** If `makensis` is unavailable but Inno Setup's
+`iscc` is present, the pipeline falls back to `build/windows-installer.iss`. Build it on a
+Windows machine with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 
 ```bat
 php vendor/bin/boson compile
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\windows-installer.iss
 ```
 
-Output: `build/output/Akeeba-Extract-Setup.exe`.
+If neither compiler is found, the pipeline produces a portable `Akeeba-Extract-windows-amd64.zip` instead.
 
 ### Known limitations
 
-- **No code signing or notarization.** macOS users will see a Gatekeeper warning on first
-  launch; right-click → Open to bypass it. Windows users may see a SmartScreen prompt.
-- **Windows and Linux binaries are compiled on macOS** via Boson's cross-compilation support
-  but must be run-tested on their respective operating systems.
-- **BZip2 (bz2) extension not bundled.** JPA archives that use BZip2 compression will fail to
-  extract. The standard Boson SFX bundles do not include `bz2`. To add it, build a custom SFX
-  by forking [boson-php/backend-src](https://github.com/boson-php/backend-src) and following
-  the README's "custom extensions" workflow, then reference the custom SFX in `boson.json`.
-- **Boson is pre-1.0** (currently 0.19.x); the API may change between minor versions. Pin
-  `boson-php/compiler` and `boson-php/runtime` versions in `composer.json`.
+* **No code signing or notarization.** macOS users will see a Gatekeeper warning on first launch; right-click → Open to bypass it. Windows users may see a SmartScreen prompt.
+* **Windows and Linux binaries are compiled on macOS** via Boson's cross-compilation support but must be run-tested on their respective operating systems.
+* **BZip2 (bz2) extension not bundled.** JPA archives that use BZip2 compression will fail to extract. The standard Boson SFX bundles do not include `bz2`. To add it, build a custom SFX by forking [boson-php/backend-src](https://github.com/boson-php/backend-src) and following the README's "custom extensions" workflow, then reference the custom SFX in `boson.json`.
+* **Boson is pre-1.0** (currently 0.19.x); the API may change between minor versions. Pin `boson-php/compiler` and `boson-php/runtime` versions in `composer.json`.
 
 Cross-platform binaries (Windows `.exe`, Linux ELF) are compiled on macOS via Boson's
 cross-compilation support but must be run-tested on their respective operating systems.

@@ -56,6 +56,26 @@ abstract class AKAbstractUnarchiver extends AKAbstractPart
 	protected $ignoreDirectories = [];
 
 	/**
+	 * Per-run caches for mustSkip(). These were function-static in earlier
+	 * revisions, which is fine in the original web/CLI use (one process per
+	 * extraction) but wrong in a long-lived host process that performs several
+	 * extractions — a dry-run scan would otherwise poison the next real run.
+	 * They are instance properties so each fresh unarchiver starts clean.
+	 *
+	 * @var bool|null  Cached value of kickstart.setup.dryrun for this run
+	 */
+	protected $mustSkipDryRun = null;
+
+	/** @var array|null Cached list of extract patterns for this run */
+	protected $mustSkipExtractList = null;
+
+	/** @var string Last filename mustSkip() was asked about (decision cache key) */
+	protected $mustSkipLastFile = '';
+
+	/** @var bool Cached skip decision for $mustSkipLastFile */
+	protected $mustSkipLastResult = false;
+
+	/**
 	 * Wakeup function, called whenever the class is unserialized
 	 */
 	public function __wakeup()
@@ -338,6 +358,7 @@ abstract class AKAbstractUnarchiver extends AKAbstractPart
 						$message->content->realfile     = $this->fileHeader->file;
 						$message->content->file         = $this->fileHeader->file;
 						$message->content->uncompressed = $this->fileHeader->uncompressed;
+						$message->content->type         = isset($this->fileHeader->type) ? $this->fileHeader->type : 'file';
 
 						if (array_key_exists('realfile', get_object_vars($this->fileHeader)))
 						{
@@ -621,51 +642,44 @@ abstract class AKAbstractUnarchiver extends AKAbstractPart
 	 */
 	protected function mustSkip()
 	{
-		static $isDryRun = null;
-
-		// List of files (and patterns) to extract
-		static $extractList = null;
-
-		// Internal cache of the last file we checked and whether it must be skipped
-		static $lastFileName = '';
-		static $mustSkip = false;
-
 		// Make sure the dry run flag is, indeed, populated
-		if (is_null($isDryRun))
+		if (is_null($this->mustSkipDryRun))
 		{
-			$isDryRun = AKFactory::get('kickstart.setup.dryrun', '0');
+			$this->mustSkipDryRun = AKFactory::get('kickstart.setup.dryrun', '0');
 		}
 
 		// If it's a Kickstart dry run we have to skip the extraction of the file
-		if ($isDryRun)
+		if ($this->mustSkipDryRun)
 		{
 			return true;
 		}
 
 		// Make sure I have a list of files and patterns to extract
-		if (is_null($extractList))
+		if (is_null($this->mustSkipExtractList))
 		{
-			$extractList = $this->getExtractList();
+			$this->mustSkipExtractList = $this->getExtractList();
 		}
 
 		// No list of files to extract is given; we must extract everything.
-		if (empty($extractList))
+		if (empty($this->mustSkipExtractList))
 		{
 			return false;
 		}
 
 		// I am asked about the same file again. Return the cached result.
-		if ($this->fileHeader->file == $lastFileName)
+		if ($this->fileHeader->file == $this->mustSkipLastFile)
 		{
-			return $mustSkip;
+			return $this->mustSkipLastResult;
 		}
 
 		// Does the current file match the extract patterns or not?
 		$lastFileName = $this->fileHeader->file;
 		$lastFileName = (strpos($lastFileName, $this->addPath) === 0) ? substr($lastFileName, strlen(rtrim($this->addPath, "\\/")) + 1) : $lastFileName;
-		$mustSkip     = !$this->matchesGlobPatterns($lastFileName, $extractList);
 
-		return $mustSkip;
+		$this->mustSkipLastFile   = $lastFileName;
+		$this->mustSkipLastResult = !$this->matchesGlobPatterns($lastFileName, $this->mustSkipExtractList);
+
+		return $this->mustSkipLastResult;
 	}
 
 	protected function fuzzySignatureSearch($requiredSignatures, $sigLen)
