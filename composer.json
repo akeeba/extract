@@ -32,6 +32,15 @@
 		"optimize-autoloader": true,
 		"sort-packages": true
 	},
+	"scripts": {
+		"build": "bash build/build-all.sh",
+		"post-update-cmd": [
+			"@build"
+		]
+	},
+	"scripts-descriptions": {
+		"build": "Compile and package Akeeba Extract for every supported platform (macOS .app/.dmg, Windows installer/zip, Linux .tar.gz, PHAR)."
+	},
 	"minimum-stability": "dev",
 	"prefer-stable": true
 }

@@ -47,17 +47,50 @@ composer install
 
 # Run in development mode (opens the app window directly)
 php index.php
+```
 
-# Compile self-contained binaries for all target platforms (from macOS)
-# Downloads runtime stubs on first run (~150 MB total); requires network.
-php vendor/bin/boson compile
+### One-command build & package (all platforms)
 
-# Package the macOS arm64 app bundle (after compile)
-./build/macos-app.sh arm64        # produces Akeeba Extract.app in build/output/macos/aarch64/
-./build/make-dmg.sh  arm64        # produces Akeeba-Extract-arm64.dmg in build/output/
+```bash
+composer build
+```
 
-# macOS x86_64 (Intel) variant
-./build/macos-app.sh amd64
+This runs `build/build-all.sh`, which compiles every target and packages each
+platform's distributable into `build/output/`:
+
+| Platform | Artifact |
+| --- | --- |
+| macOS arm64 | `Akeeba-Extract-arm64.dmg` (`.app` bundle inside) |
+| macOS x86_64 | `Akeeba-Extract-amd64.dmg` |
+| Linux x86_64 | `Akeeba-Extract-linux-amd64.tar.gz` |
+| Windows x86_64 | `Akeeba-Extract-Setup.exe` (installer) — see the Windows note below |
+| Any | `phar/akeeba-extract.phar` |
+
+Notes:
+
+- The same pipeline also runs **automatically after `composer update`** (wired
+  via the `post-update-cmd` Composer hook).
+- The first compile downloads the Boson runtime stubs (~150 MB total) and needs
+  network access; subsequent runs use the cache.
+- `.app`/`.dmg` packaging only happens on a macOS host (it uses `hdiutil`).
+- **Windows installer:** the pipeline builds `Akeeba-Extract-Setup.exe` from
+  `build/windows-installer.nsi` using **NSIS**, whose `makensis` compiler runs
+  natively on macOS and Linux — so the installer cross-compiles from your dev
+  machine with no Wine/Docker/Windows host. Install it once with
+  `brew install makensis` (macOS) or your distro's `nsis` package (Linux). If
+  `makensis` is absent, the pipeline falls back to Inno Setup's `iscc` (if
+  present, e.g. on Windows, using `build/windows-installer.iss`), and failing
+  that, a portable `Akeeba-Extract-windows-amd64.zip`.
+- If dev dependencies are absent (e.g. `composer update --no-dev`), the build
+  step detects the missing compiler and skips cleanly without failing.
+
+The individual packaging scripts can also be run by hand:
+
+```bash
+php vendor/bin/boson compile     # compile all targets only
+./build/macos-app.sh arm64       # → Akeeba Extract.app in build/output/macos/aarch64/
+./build/make-dmg.sh  arm64       # → Akeeba-Extract-arm64.dmg in build/output/
+./build/macos-app.sh amd64       # macOS x86_64 (Intel) variant
 ./build/make-dmg.sh  amd64
 ```
 
