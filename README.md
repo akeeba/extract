@@ -15,6 +15,7 @@ The extraction engine is the battle-tested unarchiver from[Akeeba Kickstart](htt
 
 * Extracts JPA, JPS (AES-encrypted, password-protected), and ZIP archives.
 * Handles multi-part archives automatically (`.jpa` + `.j01`, `.j02`, …).
+* **Selective extraction:** extract only the files you need by entering glob patterns, or use the built-in archive browser to pick files and folders from a tree and have the patterns filled in for you.
 * Native file/folder pickers and a live progress bar.
 * **Open Output Folder** button on completion for quick access to extracted files.
 * Clean error messages for common failure cases: corrupt archive, wrong password, unwritable destination, missing multi-part file, user cancel.
@@ -29,8 +30,13 @@ The extraction engine is the battle-tested unarchiver from[Akeeba Kickstart](htt
    - **Open the app with the archive as an argument** — e.g. via a Windows/Linux file association or `akeeba-extract /path/to/backup.jpa` from a terminal.
 2. The *Output folder* defaults to the archive's directory; click **Browse…** to change it.
 3. For an encrypted **JPS** archive, type the password in the *Password* field that appears.
-4. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
-5. On success, click **Open Output Folder** to open the destination in your file manager.
+4. *(Optional)* To extract only some of the archive, use the **Files to extract** box. Type one
+   [glob pattern](https://en.wikipedia.org/wiki/Glob_(programming)) per line (e.g. `images/*` or
+   `config/settings.php`), or click **Pick a file or directory…** to browse the archive contents in a
+   tree, tick the files/folders you want, and press **Insert**. Picking a folder inserts a `folder/*`
+   pattern; picking a file inserts its path verbatim. Leave the box empty to extract everything.
+5. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
+6. On success, click **Open Output Folder** to open the destination in your file manager.
 
 > [!TIP]
 > Always select the **main** archive file (`.jpa` / `.jps` / `.zip`). Multi-part pieces

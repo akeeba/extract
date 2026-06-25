@@ -35,6 +35,26 @@ final class ProgressObserver extends \AKAbstractPartObserver
 	public float $uncompressedTotal = 0.0;
 
 	/**
+	 * Whether to record the path/type of every entry the engine visits.
+	 *
+	 * Switched on by ExtractorService only for a dry-run scan (used to build the
+	 * "Pick a file or directory" tree). It is left off for real extractions so
+	 * we don't accumulate a potentially huge in-memory list for no reason.
+	 *
+	 * @var bool
+	 */
+	public bool $collectFileList = false;
+
+	/**
+	 * Collected archive entries when $collectFileList is true.
+	 *
+	 * Each element is `['path' => string, 'type' => 'file'|'dir'|'link']`.
+	 *
+	 * @var array<int, array{path: string, type: string}>
+	 */
+	public array $fileList = [];
+
+	/**
 	 * Called by the engine whenever it has a status update to report.
 	 *
 	 * We only care about `startfile` messages. All others are silently ignored.
@@ -66,6 +86,22 @@ final class ProgressObserver extends \AKAbstractPartObserver
 		$this->filesProcessed++;
 		$this->compressedTotal   += (float) $message->content->compressed;
 		$this->uncompressedTotal += (float) $message->content->uncompressed;
+
+		// During a dry-run scan, remember each entry so the UI can build a
+		// pick-list tree. content->file is the archive-relative path; content->type
+		// is 'file', 'dir', or 'link' (added to the engine's startfile message).
+		if ($this->collectFileList)
+		{
+			$path = (string) ($message->content->file ?? '');
+
+			if ($path !== '')
+			{
+				$this->fileList[] = [
+					'path' => $path,
+					'type' => (string) ($message->content->type ?? 'file'),
+				];
+			}
+		}
 	}
 
 	/**

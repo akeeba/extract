@@ -271,15 +271,46 @@ $app->webview->bindings->bind(
     }
 );
 
-// extractor.begin(archive, dest, password) → {ok: bool, error: string}
+// extractor.begin(archive, dest, password, extractList) → {ok: bool, error: string}
+// extractList is an optional newline/comma-separated list of glob patterns
+// selecting which files to extract; empty extracts everything.
 $app->webview->bindings->bind(
     'extractor.begin',
-    static function (string $archive, string $dest, ?string $password = null) use ($service): array {
+    static function (string $archive, string $dest, ?string $password = null, ?string $extractList = null) use ($service): array {
         try {
-            $service->begin($archive, $dest, $password);
+            $service->begin($archive, $dest, $password, $extractList, false);
             return ['ok' => true, 'error' => ''];
         } catch (\Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+);
+
+// extractor.beginScan(archive, password) → {ok: bool, error: string}
+// Starts a dry-run pass over the archive. Drive it with extractor.step() exactly
+// like a normal extraction; when it reports done, read the result with
+// extractor.fileList(). Nothing is written to disk.
+$app->webview->bindings->bind(
+    'extractor.beginScan',
+    static function (string $archive, ?string $password = null) use ($service): array {
+        try {
+            $service->begin($archive, '', $password, null, true);
+            return ['ok' => true, 'error' => ''];
+        } catch (\Throwable $e) {
+            return ['ok' => false, 'error' => $e->getMessage()];
+        }
+    }
+);
+
+// extractor.fileList() → [{path: string, type: 'file'|'dir'|'link'}, …]
+// The entries gathered by the most recent dry-run scan.
+$app->webview->bindings->bind(
+    'extractor.fileList',
+    static function () use ($service): array {
+        try {
+            return $service->fileList();
+        } catch (\Throwable) {
+            return [];
         }
     }
 );

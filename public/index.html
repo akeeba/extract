@@ -46,6 +46,17 @@
         <span class="field-hint">Required for encrypted JPS archives.</span>
       </div>
 
+      <!-- Files to extract (optional glob patterns) -->
+      <div class="field">
+        <div class="field-label-row">
+          <label for="extract-list">Files to extract</label>
+          <button type="button" class="btn-link" id="btn-pick-files" disabled>Pick a file or directory…</button>
+        </div>
+        <textarea id="extract-list" class="monospaced" rows="3"
+                  placeholder="Leave empty to extract everything, or enter one glob pattern per line, e.g.&#10;images/*&#10;config/settings.php"></textarea>
+        <span class="field-hint">One pattern per line. A directory pattern such as <code>images/*</code> extracts everything beneath it.</span>
+      </div>
+
     </div><!-- /.card -->
 
     <!-- Action buttons -->
@@ -77,6 +88,27 @@
     </details>
 
   </main>
+
+  <!-- File-picker modal: shows the archive contents as a checkable tree -->
+  <div class="modal-overlay hidden" id="picker-modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
+    <div class="modal">
+      <div class="modal-header">
+        <h2 id="picker-title">Pick files and folders to extract</h2>
+      </div>
+      <div class="modal-body">
+        <div class="picker-toolbar">
+          <input type="search" id="picker-filter" placeholder="Filter by name…" autocomplete="off">
+          <span class="picker-count" id="picker-count"></span>
+        </div>
+        <div class="tree" id="picker-tree"></div>
+        <p class="picker-empty hidden" id="picker-empty">This archive contains no files.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-secondary" id="btn-picker-cancel">Cancel</button>
+        <button type="button" class="btn-primary" id="btn-picker-insert" disabled>Insert</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

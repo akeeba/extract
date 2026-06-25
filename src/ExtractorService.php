@@ -56,6 +56,9 @@ final class ExtractorService
 	/** @var bool Set by cancel() to short-circuit the next step() call */
 	private bool $cancelled = false;
 
+	/** @var bool True when the current run is a dry-run scan (lists files, writes nothing) */
+	private bool $dryRun = false;
+
 	/** @var int Last reported progress percentage (monotonic non-decreasing) */
 	private int $lastPercent = 0;
 
@@ -71,11 +74,23 @@ final class ExtractorService
 	 *
 	 * @param  string       $archive      Absolute path to the primary archive file (.jpa / .jps / .zip).
 	 * @param  string       $destination  Absolute path to the output directory (created if absent).
+	 *                                    Ignored for a dry run (nothing is written).
 	 * @param  string|null  $password     Decryption password for JPS archives; null / '' for plain archives.
+	 * @param  string|null  $extractList  Newline/comma-separated glob patterns of the files to extract.
+	 *                                    Empty / null extracts everything (the default).
+	 * @param  bool         $dryRun       When true, walk the whole archive without writing any file, so the
+	 *                                    progress run produces a complete file list via fileList(). Used by
+	 *                                    the "Pick a file or directory" tree.
 	 *
 	 * @throws \RuntimeException  If $archive does not exist or is not readable.
 	 */
-	public function begin(string $archive, string $destination, ?string $password = null): void
+	public function begin(
+		string  $archive,
+		string  $destination,
+		?string $password = null,
+		?string $extractList = null,
+		bool    $dryRun = false
+	): void
 	{
 		// --- Validate input ---------------------------------------------------
 
@@ -111,36 +126,46 @@ final class ExtractorService
 			);
 		}
 
-		// Validate destination: create it if absent, check writable
-		if ($destination === '')
+		// Validate destination: create it if absent, check writable.
+		//
+		// A dry run never writes anything, so we don't need (and shouldn't demand)
+		// a real output folder — we just hand the engine a harmless temp directory.
+		if ($dryRun)
 		{
-			throw new \RuntimeException('Please select an output folder before starting extraction.');
+			$destination = ($destination !== '') ? $destination : sys_get_temp_dir();
 		}
-
-		if (!is_dir($destination))
+		else
 		{
-			// Attempt to create it; suppress the PHP warning — we check the return value instead
-			if (!@mkdir($destination, 0755, true) && !is_dir($destination))
+			if ($destination === '')
+			{
+				throw new \RuntimeException('Please select an output folder before starting extraction.');
+			}
+
+			if (!is_dir($destination))
+			{
+				// Attempt to create it; suppress the PHP warning — we check the return value instead
+				if (!@mkdir($destination, 0755, true) && !is_dir($destination))
+				{
+					throw new \RuntimeException(
+						sprintf(
+							'Output folder "%s" does not exist and could not be created. '
+							. 'Please select a different folder or create it manually.',
+							$destination
+						)
+					);
+				}
+			}
+
+			if (!is_writable($destination))
 			{
 				throw new \RuntimeException(
 					sprintf(
-						'Output folder "%s" does not exist and could not be created. '
-						. 'Please select a different folder or create it manually.',
+						'Output folder "%s" is not writable. '
+						. 'Please choose a folder you have write access to.',
 						$destination
 					)
 				);
 			}
-		}
-
-		if (!is_writable($destination))
-		{
-			throw new \RuntimeException(
-				sprintf(
-					'Output folder "%s" is not writable. '
-					. 'Please choose a folder you have write access to.',
-					$destination
-				)
-			);
 		}
 
 		// --- Reset any previous run ------------------------------------------
@@ -152,15 +177,30 @@ final class ExtractorService
 		$this->started     = false;
 		$this->cancelled   = false;
 		$this->lastPercent = 0;
+		$this->dryRun      = $dryRun;
 
 		// --- Configure the factory -------------------------------------------
 
 		\AKFactory::set('kickstart.enabled', true);
 		\AKFactory::set('kickstart.setup.sourcefile', $archive);
 		\AKFactory::set('kickstart.setup.destdir', $destination);
-		\AKFactory::set('kickstart.setup.targetpath', $destination);
+
+		// targetpath becomes the engine's "add_path", prepended to every entry's
+		// name. For a real extraction that is the output folder (where files are
+		// written); for a dry run we leave it empty so the collected file list is
+		// archive-relative (e.g. "config/db.php", not "/tmp/…/config/db.php").
+		\AKFactory::set('kickstart.setup.targetpath', $dryRun ? '' : $destination);
+
 		\AKFactory::set('kickstart.procengine', 'direct');
 		\AKFactory::set('kickstart.jps.password', (string) $password);
+
+		// Optional list of glob patterns selecting which files to extract. Empty
+		// means "extract everything". The engine matches these in mustSkip().
+		\AKFactory::set('kickstart.setup.extract_list', (string) ($extractList ?? ''));
+
+		// Dry run: the engine walks every entry but writes nothing, letting us
+		// build a complete file list for the "Pick a file or directory" tree.
+		\AKFactory::set('kickstart.setup.dryrun', $dryRun ? '1' : '0');
 
 		// Timer tuning: keep each tick to ~1 s so the UI stays responsive
 		\AKFactory::set('kickstart.tuning.max_exec_time', 1);
@@ -181,6 +221,7 @@ final class ExtractorService
 		// --- Attach the progress observer ------------------------------------
 
 		$this->observer = new ProgressObserver();
+		$this->observer->collectFileList = $dryRun;
 		$this->engine->attach($this->observer);
 
 		// --- Calculate total archive size on disk ----------------------------
@@ -298,6 +339,21 @@ final class ExtractorService
 	public function cancel(): void
 	{
 		$this->cancelled = true;
+	}
+
+	/**
+	 * Return the list of entries collected during a dry-run scan.
+	 *
+	 * Only populated when the current (or most recent) run was started with
+	 * `$dryRun = true`. Each element is `['path' => string, 'type' => string]`
+	 * where type is 'file', 'dir', or 'link'. Call this once step() reports
+	 * `done` for the dry run.
+	 *
+	 * @return array<int, array{path: string, type: string}>
+	 */
+	public function fileList(): array
+	{
+		return $this->observer?->fileList ?? [];
 	}
 
 	// -------------------------------------------------------------------------
