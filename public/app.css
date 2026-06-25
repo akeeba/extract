@@ -362,3 +362,26 @@ details.warnings-area[open] summary::before {
   color: var(--text-muted);
   font-size: 11px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Drag-and-drop hint overlay (shown while a file is dragged over the window)
+   ────────────────────────────────────────────────────────────────────────── */
+body.drag-over::after {
+  content: 'Drop your .jpa, .jps or .zip archive to open it';
+  position: fixed;
+  inset: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  border: 2px dashed var(--accent);
+  border-radius: var(--radius);
+  background: rgba(127, 127, 127, 0.10);
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  /* Purely decorative — must never intercept the drop. */
+  pointer-events: none;
+  z-index: 9999;
+}

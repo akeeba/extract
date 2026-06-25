@@ -26,12 +26,29 @@ system's native WebView).
 
 ## Usage
 
-1. Launch **Akeeba Extract**.
-2. Click **Browse…** next to *Archive file* and choose your `.jpa`, `.jps`, or `.zip` file.
-3. The *Output folder* defaults to the archive's directory; click **Browse…** to change it.
-4. For an encrypted **JPS** archive, type the password in the *Password* field that appears.
-5. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
-6. On success, click **Open Output Folder** to open the destination in your file manager.
+1. Launch **Akeeba Extract**. You can pick the archive in any of three ways:
+   - Click **Browse…** next to *Archive file* and choose your `.jpa`, `.jps`, or `.zip` file.
+   - **Drag and drop** an archive onto the window.
+   - **Open the app with the archive as an argument** — e.g. via a Windows/Linux
+     file association or `akeeba-extract /path/to/backup.jpa` from a terminal.
+2. The *Output folder* defaults to the archive's directory; click **Browse…** to change it.
+3. For an encrypted **JPS** archive, type the password in the *Password* field that appears.
+4. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
+5. On success, click **Open Output Folder** to open the destination in your file manager.
+
+> Always select the **main** archive file (`.jpa` / `.jps` / `.zip`). Multi-part pieces
+> (`.j01`, `.j02`, … / `.z01`, …) are discovered and read automatically.
+>
+> **How each open method behaves per platform:**
+>
+> - **Browse… (file picker):** works on macOS, Windows, and Linux.
+> - **Drag-and-drop:** works on Windows and Linux. **Not available on macOS** — its system
+>   WebView (WKWebView) hands the page only the dropped file's contents, never its path, so
+>   the app can't locate the archive. The window shows a clear message pointing you to
+>   Browse… if you drop a file there.
+> - **Launch with a file argument** (file association or `akeeba-extract /path/to/archive.jpa`):
+>   works on Windows and Linux, and from a macOS terminal. macOS *Finder* file associations
+>   aren't wired up (they use Apple Events rather than argv).
 
 ## Building from source
 
