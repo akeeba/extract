@@ -45,10 +45,35 @@
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 
+  /**
+   * Archive types this application can open directly.
+   *
+   * Multi-part pieces (.j01, .j02, … / .z01, .z02, …) are NOT in this list on
+   * purpose: the engine discovers and reads them automatically once the main
+   * archive (.jpa / .jps / .zip) is selected. The native file picker greys out
+   * (or, on some platforms, fails to filter) non-matching files, so we enforce
+   * the rule here as well — see isAllowedArchive().
+   */
+  var ALLOWED_ARCHIVE_EXT = ['jpa', 'jps', 'zip'];
+
+  /** Lower-cased file extension of a path, or '' when there is none. */
+  function fileExt(path) {
+    // Strip any query/fragment, trailing slashes, then the directory portion.
+    var clean = String(path || '').replace(/[?#].*$/, '').replace(/[/\\]+$/, '');
+    var base  = clean.replace(/^.*[/\\]/, '');
+    var dot   = base.lastIndexOf('.');
+    return dot >= 0 ? base.slice(dot + 1).toLowerCase() : '';
+  }
+
+  /** True when the path looks like an archive we can open directly. */
+  function isAllowedArchive(path) {
+    return ALLOWED_ARCHIVE_EXT.indexOf(fileExt(path)) !== -1;
+  }
+
   /** Show or hide the password field based on the archive extension. */
   function updatePasswordVisibility() {
     var path = archivePath.value || '';
-    var isJps = path.toLowerCase().slice(-4) === '.jps';
+    var isJps = fileExt(path) === 'jps';
     if (isJps) {
       passwordField.classList.remove('hidden');
     } else {
@@ -250,6 +275,22 @@
     /* global pickArchive */
     pickArchive().then(function (path) {
       if (!path) return;
+
+      // The native picker should restrict the choice to .jpa/.jps/.zip, but not
+      // every platform honours the filter (it may merely grey out other files,
+      // or ignore the filter entirely). Enforce it here so a stray pick — e.g. a
+      // multi-part .j01 piece — is rejected with a helpful message instead of
+      // being accepted.
+      if (!isAllowedArchive(path)) {
+        showError(
+          'Please choose a .jpa, .jps, or .zip archive. ' +
+          'Multi-part pieces such as .j01 or .z01 are detected automatically — ' +
+          'select the main archive file instead.'
+        );
+        return;
+      }
+
+      clearResults();
       archivePath.value = path;
       updatePasswordVisibility();
       // Auto-fill output dir with either the remembered last dir or the archive's directory
@@ -297,6 +338,14 @@
 
     if (!archive || !dest) {
       showError('Please select an archive file and an output folder.');
+      return;
+    }
+
+    if (!isAllowedArchive(archive)) {
+      showError(
+        'The selected file is not a supported archive. ' +
+        'Choose a .jpa, .jps, or .zip file.'
+      );
       return;
     }
 
