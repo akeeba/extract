@@ -49,6 +49,37 @@ The extraction engine is the battle-tested unarchiver from[Akeeba Kickstart](htt
 - **Drag-and-drop:** works on Windows and Linux. **Not available on macOS** — its system WebView (WKWebView) hands the page only the dropped file's contents, never its path, so the app can't locate the archive. The window shows a clear message pointing you to Browse… if you drop a file there.
 - **Launch with a file argument** (file association or `akeeba-extract /path/to/archive.jpa`): works on Windows and Linux, and from a macOS terminal. macOS *Finder* file associations aren't wired up (they use Apple Events rather than argv).
 
+### Selective extraction
+
+By default the entire archive is extracted. To extract only part of it, list one or
+more **glob patterns** in the *Files to extract* box — one per line (commas also work).
+Leave the box empty to extract everything.
+
+Patterns are matched against each entry's **archive-relative path** (e.g.
+`config/settings.php`), and matching is **case-sensitive**:
+
+| Pattern | Matches |
+| --- | --- |
+| `config/settings.php` | exactly that one file |
+| `images/*` | everything under `images/`, **at any depth** (e.g. `images/a.png` *and* `images/icons/b.png`) |
+| `*.sql` | every entry whose path ends in `.sql`, in any folder |
+| `config/db.php, config/settings.php` | either file (comma- or newline-separated) |
+
+> [!NOTE]
+> Unlike a shell, `*` here also matches the `/` separator, so a single `folder/*`
+> pattern covers the whole sub-tree beneath `folder/`. `?` matches any single character.
+
+**Pick a file or directory…** opens a browser of the archive's contents as a checkable
+tree. Tick any files and folders and press **Insert** to append the matching patterns to
+the box: a folder becomes `folder/*`, a file becomes its path verbatim. Ticking a folder
+selects everything inside it.
+
+The first time you open the picker, the app performs a quick **dry run** over the whole
+archive — it reads (and, for JPS, decrypts with the password you entered) every part to
+enumerate the entries, **without writing anything to disk**. Progress is shown on the main
+window's bar and can be cancelled. The resulting list is cached, so reopening the picker is
+instant; it is rescanned automatically if you change the archive or the password.
+
 ## Building from source
 
 Requirements (development machine):
@@ -141,6 +172,7 @@ If neither compiler is found, the pipeline produces a portable `Akeeba-Extract-w
 * **Windows and Linux binaries are compiled on macOS** via Boson's cross-compilation support but must be run-tested on their respective operating systems.
 * **BZip2 (bz2) extension not bundled.** JPA archives that use BZip2 compression will fail to extract. The standard Boson SFX bundles do not include `bz2`. To add it, build a custom SFX by forking [boson-php/backend-src](https://github.com/boson-php/backend-src) and following the README's "custom extensions" workflow, then reference the custom SFX in `boson.json`.
 * **Boson is pre-1.0** (currently 0.19.x); the API may change between minor versions. Pin `boson-php/compiler` and `boson-php/runtime` versions in `composer.json`.
+* **The file picker scans the whole archive on first open.** Enumerating the entries reads (and, for JPS, decrypts) every part, so for a large multi-gigabyte archive the first open of *Pick a file or directory…* can take a while. It runs with a cancellable progress bar and the result is cached for the session.
 
 Cross-platform binaries (Windows `.exe`, Linux ELF) are compiled on macOS via Boson's
 cross-compilation support but must be run-tested on their respective operating systems.
