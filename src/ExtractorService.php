@@ -81,6 +81,11 @@ final class ExtractorService
 	 * @param  bool         $dryRun       When true, walk the whole archive without writing any file, so the
 	 *                                    progress run produces a complete file list via fileList(). Used by
 	 *                                    the "Pick a file or directory" tree.
+	 * @param  bool         $ignoreErrors When true, the engine keeps going past most recoverable errors —
+	 *                                    files it cannot write (e.g. Linux-only names such as `foo?bar` on
+	 *                                    Windows, or unwritable targets) and corrupt entry headers are skipped
+	 *                                    instead of aborting the whole run. Each skipped entry is reported as a
+	 *                                    warning. Has no effect on a dry run (nothing is written).
 	 *
 	 * @throws \RuntimeException  If $archive does not exist or is not readable.
 	 */
@@ -89,7 +94,8 @@ final class ExtractorService
 		string  $destination,
 		?string $password = null,
 		?string $extractList = null,
-		bool    $dryRun = false
+		bool    $dryRun = false,
+		bool    $ignoreErrors = false
 	): void
 	{
 		// --- Validate input ---------------------------------------------------
@@ -202,6 +208,11 @@ final class ExtractorService
 		// build a complete file list for the "Pick a file or directory" tree.
 		\AKFactory::set('kickstart.setup.dryrun', $dryRun ? '1' : '0');
 
+		// "Skip most errors": let the engine continue past files it cannot write
+		// and corrupt entry headers instead of aborting. A dry run writes nothing,
+		// so the flag is meaningless there — force it off to keep scans strict.
+		\AKFactory::set('kickstart.setup.ignoreerrors', (!$dryRun && $ignoreErrors));
+
 		// Timer tuning: keep each tick to ~1 s so the UI stays responsive
 		\AKFactory::set('kickstart.tuning.max_exec_time', 1);
 		\AKFactory::set('kickstart.tuning.run_time_bias', 75);
@@ -298,6 +309,14 @@ final class ExtractorService
 
 		$ret = $this->engine->getStatusArray();
 
+		// Read the full accumulated warning list straight from the engine rather
+		// than $ret['Warnings']: getStatusArray() returns only the *delta* since the
+		// previous tick (via the engine's warnings_pointer), so warnings raised on
+		// earlier ticks — e.g. files skipped under "Skip most errors" — would drop
+		// out of the result and never reach the UI. getWarnings() always returns the
+		// complete list, which the UI renders wholesale on each step.
+		$warnings = array_values($this->engine->getWarnings());
+
 		// --- Calculate progress percentage -----------------------------------
 
 		$percent = $this->computePercent();
@@ -325,7 +344,7 @@ final class ExtractorService
 			percent:  $percent,
 			done:     $done,
 			error:    $errorStr,
-			warnings: array_values($ret['Warnings'] ?? []),
+			warnings: $warnings,
 			hasRun:   $ret['HasRun'] ?? true
 		);
 	}

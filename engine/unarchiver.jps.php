@@ -731,12 +731,23 @@ class AKUnarchiverJPS extends AKUnarchiverJPA
 			// Can we write to the file?
 			$ignore =
 				AKFactory::get('kickstart.setup.ignoreerrors', false) || $this->isIgnoredDirectory($this->fileHeader->file);
-			if (($outfp === false) && (!$ignore))
+			if ($outfp === false)
 			{
-				// An error occurred
-				$this->setError(AKText::sprintf('COULDNT_WRITE_FILE', $this->fileHeader->realFile));
+				if (!$ignore)
+				{
+					// An error occurred
+					$this->setError(AKText::sprintf('COULDNT_WRITE_FILE', $this->fileHeader->realFile));
 
-				return false;
+					return false;
+				}
+
+				// "Skip most errors" is on: note the skipped file once (on its first
+				// chunk) and carry on. The archive data is still consumed below so the
+				// stream stays aligned; it is simply discarded.
+				if ($this->dataReadLength == 0)
+				{
+					$this->setWarning(AKText::sprintf('Skipped (could not write): %s', $this->fileHeader->realFile));
+				}
 			}
 		}
 

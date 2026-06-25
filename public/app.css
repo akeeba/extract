@@ -364,6 +364,33 @@ details.warnings-area[open] summary::before {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+   Checkbox option row (e.g. "Skip most errors")
+   ────────────────────────────────────────────────────────────────────────── */
+.field label.checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Undo the uppercase/muted treatment the plain .field label gets */
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.field label.checkbox-row input[type="checkbox"] {
+  flex: 0 0 auto;
+  margin: 0;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.field label.checkbox-row input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
    Files-to-extract field
    ────────────────────────────────────────────────────────────────────────── */
 .field-label-row {

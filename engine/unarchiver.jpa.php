@@ -722,13 +722,25 @@ class AKUnarchiverJPA extends AKAbstractUnarchiver
 			}
 
 			// Can we write to the file?
-			if (($outfp === false) && (!$ignore))
+			if ($outfp === false)
 			{
-				// An error occurred
-				debugMsg('Could not write to output file');
-				$this->setError(AKText::sprintf('COULDNT_WRITE_FILE', $this->fileHeader->realFile));
+				if (!$ignore)
+				{
+					// An error occurred
+					debugMsg('Could not write to output file');
+					$this->setError(AKText::sprintf('COULDNT_WRITE_FILE', $this->fileHeader->realFile));
 
-				return false;
+					return false;
+				}
+
+				// "Skip most errors" is on: note the skipped file once (on its first
+				// chunk) and carry on. The archive data is still consumed below so the
+				// stream stays aligned; it is simply discarded.
+				if ($this->dataReadLength == 0)
+				{
+					debugMsg('Skipping unwritable output file ' . $this->fileHeader->realFile);
+					$this->setWarning(AKText::sprintf('Skipped (could not write): %s', $this->fileHeader->realFile));
+				}
 			}
 		}
 
@@ -828,13 +840,21 @@ class AKUnarchiverJPA extends AKAbstractUnarchiver
 			$ignore =
 				AKFactory::get('kickstart.setup.ignoreerrors', false) || $this->isIgnoredDirectory($this->fileHeader->file);
 
-			if (($outfp === false) && (!$ignore))
+			if ($outfp === false)
 			{
-				// An error occurred
-				debugMsg('Could not write to output file');
-				$this->setError(AKText::sprintf('COULDNT_WRITE_FILE', $this->fileHeader->realFile));
+				if (!$ignore)
+				{
+					// An error occurred
+					debugMsg('Could not write to output file');
+					$this->setError(AKText::sprintf('COULDNT_WRITE_FILE', $this->fileHeader->realFile));
 
-				return false;
+					return false;
+				}
+
+				// "Skip most errors" is on: record the skipped file and carry on. The
+				// archive data is still consumed below so the stream stays aligned.
+				debugMsg('Skipping unwritable output file ' . $this->fileHeader->realFile);
+				$this->setWarning(AKText::sprintf('Skipped (could not write): %s', $this->fileHeader->realFile));
 			}
 		}
 

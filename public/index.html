@@ -57,6 +57,16 @@
         <span class="field-hint">One pattern per line. A directory pattern such as <code>images/*</code> extracts everything beneath it.</span>
       </div>
 
+      <!-- Skip most errors (continue past unwritable / corrupt entries) -->
+      <div class="field">
+        <label class="checkbox-row" for="skip-errors">
+          <input type="checkbox" id="skip-errors">
+          <span>Skip most errors</span>
+        </label>
+        <span class="field-hint">Continue extracting when a file cannot be written (e.g. a name that is
+          valid on Linux but not on Windows) or an entry is corrupt. Skipped files are listed under Warnings.</span>
+      </div>
+
     </div><!-- /.card -->
 
     <!-- Action buttons -->

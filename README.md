@@ -16,6 +16,7 @@ The extraction engine is the battle-tested unarchiver from[Akeeba Kickstart](htt
 * Extracts JPA, JPS (AES-encrypted, password-protected), and ZIP archives.
 * Handles multi-part archives automatically (`.jpa` + `.j01`, `.j02`, …).
 * **Selective extraction:** extract only the files you need by entering glob patterns, or use the built-in archive browser to pick files and folders from a tree and have the patterns filled in for you.
+* **Skip most errors:** optionally keep going past files that cannot be written (e.g. a backup made on Linux containing names such as `foo?bar` that are invalid on Windows) or corrupt entries, instead of aborting the whole run. Each skipped entry is listed under Warnings.
 * Native file/folder pickers and a live progress bar.
 * **Open Output Folder** button on completion for quick access to extracted files.
 * Clean error messages for common failure cases: corrupt archive, wrong password, unwritable destination, missing multi-part file, user cancel.
@@ -35,8 +36,11 @@ The extraction engine is the battle-tested unarchiver from[Akeeba Kickstart](htt
    `config/settings.php`), or click **Pick a file or directory…** to browse the archive contents in a
    tree, tick the files/folders you want, and press **Insert**. Picking a folder inserts a `folder/*`
    pattern; picking a file inserts its path verbatim. Leave the box empty to extract everything.
-5. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
-6. On success, click **Open Output Folder** to open the destination in your file manager.
+5. *(Optional)* Tick **Skip most errors** to keep extracting when an individual file cannot be written
+   (for example a Linux-only name such as `foo?bar` on Windows) or an entry is corrupt, instead of
+   aborting. Skipped entries are reported in the collapsible **Warnings** area when the run finishes.
+6. Click **Start**. All inputs are locked during extraction; click **Cancel** to abort.
+7. On success, click **Open Output Folder** to open the destination in your file manager.
 
 > [!TIP]
 > Always select the **main** archive file (`.jpa` / `.jps` / `.zip`). Multi-part pieces
@@ -79,6 +83,30 @@ archive — it reads (and, for JPS, decrypts with the password you entered) ever
 enumerate the entries, **without writing anything to disk**. Progress is shown on the main
 window's bar and can be cancelled. The resulting list is cached, so reopening the picker is
 instant; it is rescanned automatically if you change the archive or the password.
+
+### Skip most errors
+
+By default, the extraction stops at the first problem it cannot recover from — typically a
+file that cannot be written to disk, or a corrupt entry in the archive. Tick **Skip most
+errors** before pressing **Start** to make the engine *continue* past such problems instead:
+
+- A file that cannot be written (for example a name like `foo?bar#baz` that is perfectly
+  valid on Linux but illegal on Windows, or a target the operating system refuses) is left
+  out and extraction moves on to the next entry. This applies to JPA, JPS, and ZIP archives.
+- For **JPA** and **JPS** archives, a corrupt entry header is skipped by scanning ahead for
+  the next valid one, so a localised bit of corruption no longer dooms the whole archive.
+
+Every skipped entry is recorded as a warning, surfaced in the collapsible **Warnings** area
+once the run finishes, so you always know exactly what was left out. This mirrors the
+long-standing *Skip most errors* option of [Akeeba Kickstart](https://github.com/akeeba/kickstart).
+
+> [!NOTE]
+> This option only changes how *recoverable* errors are handled. Fatal conditions — a wrong
+> JPS password, a completely unreadable archive, or a missing multi-part file — still stop
+> the run with a clear error message.
+
+The headless CLI harness (`bin/extract-cli.php`) exposes the same behaviour through a
+`-s` / `--skip-errors` flag.
 
 ## Building from source
 

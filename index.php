@@ -271,14 +271,16 @@ $app->webview->bindings->bind(
     }
 );
 
-// extractor.begin(archive, dest, password, extractList) → {ok: bool, error: string}
+// extractor.begin(archive, dest, password, extractList, ignoreErrors) → {ok: bool, error: string}
 // extractList is an optional newline/comma-separated list of glob patterns
 // selecting which files to extract; empty extracts everything.
+// ignoreErrors, when true, makes the engine skip files it cannot write (and
+// corrupt entry headers) instead of aborting — each one surfaces as a warning.
 $app->webview->bindings->bind(
     'extractor.begin',
-    static function (string $archive, string $dest, ?string $password = null, ?string $extractList = null) use ($service): array {
+    static function (string $archive, string $dest, ?string $password = null, ?string $extractList = null, bool $ignoreErrors = false) use ($service): array {
         try {
-            $service->begin($archive, $dest, $password, $extractList, false);
+            $service->begin($archive, $dest, $password, $extractList, false, $ignoreErrors);
             return ['ok' => true, 'error' => ''];
         } catch (\Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage()];

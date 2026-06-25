@@ -13,12 +13,18 @@
  * Headless extraction harness.
  *
  * Usage:
- *   php bin/extract-cli.php <archive> <destination> [password]
+ *   php bin/extract-cli.php [-s|--skip-errors] <archive> <destination> [password]
  *
  * Arguments:
  *   archive       Absolute or relative path to the .jpa / .jps / .zip file.
  *   destination   Directory to extract into (will be created if absent).
  *   password      Optional decryption password (JPS archives only).
+ *
+ * Options:
+ *   -s, --skip-errors   Continue past files that cannot be written (e.g. names
+ *                       that are valid on Linux but not on Windows) or corrupt
+ *                       entries, instead of aborting. Skipped entries are
+ *                       reported as warnings.
  *
  * Exit codes:
  *   0  Extraction completed successfully.
@@ -38,16 +44,35 @@ if (PHP_SAPI !== 'cli')
 
 // ---------------------------------------------------------------------------
 // Parse arguments
+//
+// Pull the optional -s / --skip-errors flag out of the argument list first, so
+// the positional archive / destination / password arguments can appear in any
+// order relative to it.
 // ---------------------------------------------------------------------------
-if ($argc < 3)
+$ignoreErrors = false;
+$positional   = [];
+
+foreach (array_slice($argv, 1) as $arg)
 {
-	fwrite(STDERR, "Usage: php bin/extract-cli.php <archive> <destination> [password]\n");
+	if ($arg === '-s' || $arg === '--skip-errors')
+	{
+		$ignoreErrors = true;
+
+		continue;
+	}
+
+	$positional[] = $arg;
+}
+
+if (count($positional) < 2)
+{
+	fwrite(STDERR, "Usage: php bin/extract-cli.php [-s|--skip-errors] <archive> <destination> [password]\n");
 	exit(1);
 }
 
-$archive     = $argv[1];
-$destination = $argv[2];
-$password    = $argv[3] ?? null;
+$archive     = $positional[0];
+$destination = $positional[1];
+$password    = $positional[2] ?? null;
 
 // Resolve relative paths
 if (!str_starts_with($archive, '/') && !str_starts_with($archive, '\\'))
@@ -88,7 +113,7 @@ $service = new \Akeeba\Extract\ExtractorService();
 
 try
 {
-	$service->begin($archive, $destination, $password);
+	$service->begin($archive, $destination, $password, null, false, $ignoreErrors);
 }
 catch (\RuntimeException $e)
 {
