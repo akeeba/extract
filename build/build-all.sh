@@ -11,12 +11,11 @@
 #
 #   1. Compiles self-contained binaries for all targets (php vendor/bin/boson
 #      compile → macOS arm64/amd64, Windows amd64, Linux amd64, PHAR).
-#   2. Packages each platform's distributable:
+#   2. Packages each platform's distributable into build/dist/:
 #        - macOS : .app bundle + compressed .dmg  (per architecture; macOS host only)
 #        - Linux : .tar.gz of the binary + runtime .so + public/
-#        - Windows: Inno Setup installer if `iscc` is available, otherwise a
-#                   portable .zip fallback (the signed installer is built on
-#                   Windows from build/windows-installer.iss).
+#        - Windows: NSIS installer (native cross-compile via `makensis`) if
+#                   available, else Inno Setup's `iscc`, else a portable .zip.
 #
 # Design notes for the `composer update` hook:
 #   - If the Boson compiler is absent (e.g. `composer update --no-dev`), the
@@ -36,7 +35,8 @@ cd "$PROJECT_ROOT"
 
 BOSON="vendor/bin/boson"
 OUT="build/output"
-APPVERSION="1.0.0"
+DIST="build/dist"
+APPVERSION="${AKEEBA_EXTRACT_VERSION:-$(sed -nE "s/.*VERSION = '([^']+)'.*/\1/p" src/App.php | head -1)}"
 
 PRODUCED=()
 WARNINGS=()
@@ -74,7 +74,7 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
         if [[ -f "$BIN" ]]; then
             heading "Packaging macOS ($ARCH): .app + .dmg"
             if bash build/macos-app.sh "$ARCH" && bash build/make-dmg.sh "$ARCH"; then
-                PRODUCED+=("$OUT/Akeeba-Extract-${ARCH}.dmg")
+                PRODUCED+=("$DIST/Akeeba-Extract-${APPVERSION}-macos-${ARCH}.dmg")
             else
                 warn "macOS $ARCH packaging failed"
                 FAIL=1
@@ -93,84 +93,30 @@ fi
 LINUX_BIN="$OUT/linux/amd64/akeeba-extract"
 if [[ -f "$LINUX_BIN" ]]; then
     heading "Packaging Linux (amd64): .tar.gz"
-    STAGE="$OUT/.stage-linux/akeeba-extract"
-    rm -rf "$OUT/.stage-linux"; mkdir -p "$STAGE"
-    cp -R "$OUT/linux/amd64/." "$STAGE/"
-
-    # Desktop integration: ship the icon, a .desktop launcher and an installer
-    # so users get the Akeeba Extract icon in their menus (see build/linux-install.sh).
-    cp "build/extract.png"             "$STAGE/akeeba-extract.png"
-    cp "build/akeeba-extract.desktop"  "$STAGE/akeeba-extract.desktop"
-    cp "build/linux-install.sh"        "$STAGE/install.sh"
-    chmod +x "$STAGE/install.sh"
-
-    TGZ="$OUT/Akeeba-Extract-linux-amd64.tar.gz"
-    rm -f "$TGZ"
-    if tar -czf "$TGZ" -C "$OUT/.stage-linux" akeeba-extract; then
-        PRODUCED+=("$TGZ")
+    if bash build/make-linux-tarball.sh amd64; then
+        PRODUCED+=("$DIST/Akeeba-Extract-${APPVERSION}-linux-amd64.tar.gz")
     else
         warn "Linux tarball failed"
         FAIL=1
     fi
-    rm -rf "$OUT/.stage-linux"
 else
     warn "Linux binary missing ($LINUX_BIN) — skipped"
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Windows — Inno Setup installer if available, else a portable .zip
+# 4. Windows — NSIS installer, Inno Setup installer, or a portable .zip
 # ---------------------------------------------------------------------------
 WIN_BIN="$OUT/windows/amd64/akeeba-extract.exe"
 if [[ -f "$WIN_BIN" ]]; then
-    # Preferred: NSIS — its `makensis` compiler runs natively on macOS/Linux,
-    # so the installer cross-compiles from this host (no Wine/Docker/Windows).
-    # Fallbacks: Inno Setup's `iscc` (e.g. on a Windows host), else a portable .zip.
-    MAKENSIS="$(command -v makensis 2>/dev/null || true)"
-    ISCC="$(command -v iscc 2>/dev/null || command -v ISCC 2>/dev/null || true)"
-
-    if [[ -n "$MAKENSIS" ]]; then
-        heading "Packaging Windows (amd64): NSIS installer (native makensis)"
-        # makensis chdir's to the script dir, so pass ABSOLUTE source/output paths.
-        if "$MAKENSIS" -V2 \
-            "-DSRCDIR=$PROJECT_ROOT/$OUT/windows/amd64" \
-            "-DOUTFILE=$PROJECT_ROOT/$OUT/Akeeba-Extract-Setup.exe" \
-            "-DLICENSEFILE=$PROJECT_ROOT/LICENSE.txt" \
-            "-DICONFILE=$PROJECT_ROOT/build/extract.ico" \
-            "-DAPPVERSION=$APPVERSION" \
-            build/windows-installer.nsi; then
-            PRODUCED+=("$OUT/Akeeba-Extract-Setup.exe")
+    if bash build/make-windows-installer.sh; then
+        if [[ -f "$DIST/Akeeba-Extract-${APPVERSION}-windows-amd64-Setup.exe" ]]; then
+            PRODUCED+=("$DIST/Akeeba-Extract-${APPVERSION}-windows-amd64-Setup.exe")
         else
-            warn "NSIS (makensis) build failed"
-            FAIL=1
-        fi
-    elif [[ -n "$ISCC" ]]; then
-        heading "Packaging Windows (amd64): Inno Setup installer (iscc)"
-        if "$ISCC" build/windows-installer.iss; then
-            PRODUCED+=("$OUT/Akeeba-Extract-Setup.exe")
-        else
-            warn "Inno Setup (iscc) build failed"
-            FAIL=1
+            PRODUCED+=("$DIST/Akeeba-Extract-${APPVERSION}-windows-amd64.zip")
         fi
     else
-        heading "Packaging Windows (amd64): portable .zip (no installer compiler found)"
-        warn "No installer compiler found — produced a portable .zip. Install NSIS ('brew install makensis') for a native Windows installer, or build build/windows-installer.iss on Windows."
-        STAGE="$OUT/.stage-win/Akeeba Extract"
-        rm -rf "$OUT/.stage-win"; mkdir -p "$STAGE"
-        cp -R "$OUT/windows/amd64/." "$STAGE/"
-        cp "build/extract.ico" "$STAGE/extract.ico"
-        ZIP_OUT="$OUT/Akeeba-Extract-windows-amd64.zip"
-        rm -f "$ZIP_OUT"
-        if command -v zip >/dev/null 2>&1; then
-            if ( cd "$OUT/.stage-win" && zip -qr "../Akeeba-Extract-windows-amd64.zip" "Akeeba Extract" ); then
-                PRODUCED+=("$ZIP_OUT")
-            else
-                warn "Windows .zip packaging failed"
-                FAIL=1
-            fi
-        else
-            warn "'zip' not available — skipped Windows .zip"
-        fi
-        rm -rf "$OUT/.stage-win"
+        warn "Windows packaging failed"
+        FAIL=1
     fi
 else
     warn "Windows binary missing ($WIN_BIN) — skipped"
@@ -180,7 +126,12 @@ fi
 # 5. PHAR (cross-platform; emitted by the compiler)
 # ---------------------------------------------------------------------------
 if [[ -f "$OUT/phar/akeeba-extract.phar" ]]; then
-    PRODUCED+=("$OUT/phar/akeeba-extract.phar")
+    if bash build/make-phar-dist.sh; then
+        PRODUCED+=("$DIST/Akeeba-Extract-${APPVERSION}.phar")
+    else
+        warn "PHAR packaging failed"
+        FAIL=1
+    fi
 fi
 
 # ---------------------------------------------------------------------------

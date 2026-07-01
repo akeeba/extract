@@ -18,7 +18,11 @@
 ; ============================================================================
 
 #define AppName      "Akeeba Extract"
-#define AppVersion   "1.0.0"
+; No default: the version is always supplied by the caller (build-all.sh /
+; make-windows-installer.sh), sourced from src/App.php::VERSION, via /DAppVersion=...
+#ifndef AppVersion
+  #error AppVersion must be defined (pass /DAppVersion=<version> to ISCC)
+#endif
 #define AppPublisher "Nicholas K. Dionysopoulos / Akeeba Ltd"
 #define AppURL       "https://github.com/akeeba/extract"
 #define AppExeName   "akeeba-extract.exe"

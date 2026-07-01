@@ -38,8 +38,15 @@ Unicode true
 !ifndef OUTFILE
   !define OUTFILE "${__FILEDIR__}/output/Akeeba-Extract-Setup.exe"
 !endif
+; No default: the version is always supplied by the caller (build-all.sh /
+; make-windows-installer.sh / Phing), sourced from src/App.php::VERSION.
 !ifndef APPVERSION
-  !define APPVERSION "1.0.0"
+  !error "APPVERSION must be defined (pass -DAPPVERSION=<version>)"
+!endif
+; VIProductVersion requires a strict X.X.X.X numeric form, unlike APPVERSION
+; (e.g. "0.1"), so the caller pads/sanitises it separately into VIVERSION.
+!ifndef VIVERSION
+  !error "VIVERSION must be defined (pass -DVIVERSION=<major.minor.build.revision>)"
 !endif
 !ifndef LICENSEFILE
   !define LICENSEFILE "${__FILEDIR__}/../LICENSE.txt"
@@ -73,7 +80,7 @@ RequestExecutionLevel user
 InstallDir "$LOCALAPPDATA\Programs\${APPNAME}"
 InstallDirRegKey HKCU "Software\${APPNAME}" "InstallDir"
 SetCompressor /SOLID lzma
-VIProductVersion "${APPVERSION}.0"
+VIProductVersion "${VIVERSION}"
 VIAddVersionKey "ProductName"     "${APPNAME}"
 VIAddVersionKey "FileDescription" "${APPNAME} installer"
 VIAddVersionKey "LegalCopyright"  "(c) 2026 ${PUBLISHER}"

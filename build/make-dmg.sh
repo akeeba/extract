@@ -13,7 +13,7 @@
 #
 # Prerequisite: run ./build/macos-app.sh [ARCH] first.
 #
-# Output: build/output/Akeeba-Extract-<ARCH>.dmg
+# Output: build/dist/Akeeba-Extract-<version>-macos-<ARCH>.dmg
 #
 # This script uses `hdiutil` (built into macOS) to create a compressed
 # read-only DMG. If you have `create-dmg` installed (brew install create-dmg),
@@ -44,10 +44,15 @@ else
     BOSON_DIR="$ARCH"
 fi
 
+VERSION="${AKEEBA_EXTRACT_VERSION:-$(sed -nE "s/.*VERSION = '([^']+)'.*/\1/p" "$PROJECT_ROOT/src/App.php" | head -1)}"
+
 APP_BUNDLE="$PROJECT_ROOT/build/output/macos/$BOSON_DIR/$APP_NAME.app"
-DMG_OUT="$PROJECT_ROOT/build/output/Akeeba-Extract-${ARCH}.dmg"
+DIST_DIR="$PROJECT_ROOT/build/dist"
+DMG_OUT="$DIST_DIR/Akeeba-Extract-${VERSION}-macos-${ARCH}.dmg"
 STAGING_DIR="$PROJECT_ROOT/build/output/.dmg-staging-${BOSON_DIR}"
 VOLUME_NAME="Akeeba Extract"
+
+mkdir -p "$DIST_DIR"
 
 # ---------------------------------------------------------------------------
 # Sanity checks

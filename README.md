@@ -115,6 +115,7 @@ Requirements (development machine):
 - PHP **8.4+** with the `ffi`, `openssl`, and `zlib` extensions (`bz2` is optional as we never allowed creating backup archives using this compression method).
 - [Composer](https://getcomposer.org).
 - Boson compiler (`boson-php/compiler`, installed via Composer). macOS 14+ for development.
+- *(Optional)* [Phing](https://www.phing.info) on your `PATH` (`composer global require phing/phing`) if you want the Phing-driven workflow below instead of the plain `composer build` / `./build/*.sh` scripts. Not required for a basic build.
 
 ```bash
 # Install dependencies (including Boson runtime and compiler)
@@ -124,6 +125,12 @@ composer install
 php index.php
 ```
 
+The application version is a single source of truth: the topmost entry of the root
+`CHANGELOG` file (e.g. `Akeeba Extract 0.1`). Every build stamps that version into
+`src/App.php`'s `VERSION` constant (`php build/tasks/set-version.php`), and every
+packaging script reads it back from there — bump the version by adding a new
+`CHANGELOG` entry, not by editing `src/App.php` directly.
+
 ### One-command build & package (all platforms)
 
 ```bash
@@ -131,33 +138,57 @@ composer build
 ```
 
 This runs `build/build-all.sh`, which compiles every target and packages each
-platform's distributable into `build/output/`:
+platform's distributable into `build/dist/` (the version comes from the topmost
+`CHANGELOG` entry, stamped into `src/App.php`):
 
 | Platform | Artifact |
 | --- | --- |
-| macOS arm64 | `Akeeba-Extract-arm64.dmg` (`.app` bundle inside) |
-| macOS x86_64 | `Akeeba-Extract-amd64.dmg` |
-| Linux x86_64 | `Akeeba-Extract-linux-amd64.tar.gz` |
-| Windows x86_64 | `Akeeba-Extract-Setup.exe` (installer) — see the Windows note below |
-| Any | `phar/akeeba-extract.phar` |
+| macOS arm64 | `Akeeba-Extract-<version>-macos-arm64.dmg` (`.app` bundle inside) |
+| macOS x86_64 | `Akeeba-Extract-<version>-macos-amd64.dmg` |
+| Linux x86_64 | `Akeeba-Extract-<version>-linux-amd64.tar.gz` |
+| Windows x86_64 | `Akeeba-Extract-<version>-windows-amd64-Setup.exe` (installer) — see the Windows note below |
+| Any | `Akeeba-Extract-<version>.phar` |
 
 Notes:
 
 * The same pipeline also runs **automatically after `composer update`** (wired via the `post-update-cmd` Composer hook).
 * The first compile downloads the Boson runtime stubs (~150 MB total) and needs network access; subsequent runs use the cache.
 * `.app`/`.dmg` packaging only happens on a macOS host (it uses `hdiutil`).
-* **Windows installer:** the pipeline builds `Akeeba-Extract-Setup.exe` from`build/windows-installer.nsi` using **NSIS**, whose `makensis` compiler runs natively on macOS and Linux — so the installer cross-compiles from your dev machine with no Wine/Docker/Windows host. Install it once with`brew install makensis` (macOS) or your distro's `nsis` package (Linux). If `makensis` is absent, the pipeline falls back to Inno Setup's `iscc` (if present, e.g. on Windows, using `build/windows-installer.iss`), and failing that, a portable `Akeeba-Extract-windows-amd64.zip`.
+* **Windows installer:** the pipeline builds the NSIS installer from `build/windows-installer.nsi` using **NSIS**, whose `makensis` compiler runs natively on macOS and Linux — so the installer cross-compiles from your dev machine with no Wine/Docker/Windows host. Install it once with `brew install makensis` (macOS) or your distro's `nsis` package (Linux). If `makensis` is absent, the pipeline falls back to Inno Setup's `iscc` (if present, e.g. on Windows, using `build/windows-installer.iss`), and failing that, a portable `Akeeba-Extract-<version>-windows-amd64.zip`.
 * If dev dependencies are absent (e.g. `composer update --no-dev`), the build step detects the missing compiler and skips cleanly without failing.
 
 The individual packaging scripts can also be run by hand:
 
 ```bash
-php vendor/bin/boson compile     # compile all targets only
-./build/macos-app.sh arm64       # → Akeeba Extract.app in build/output/macos/aarch64/
-./build/make-dmg.sh  arm64       # → Akeeba-Extract-arm64.dmg in build/output/
-./build/macos-app.sh amd64       # macOS x86_64 (Intel) variant
+php vendor/bin/boson compile          # compile all targets only
+./build/macos-app.sh arm64            # → Akeeba Extract.app in build/output/macos/aarch64/
+./build/make-dmg.sh  arm64            # → Akeeba-Extract-<version>-macos-arm64.dmg in build/dist/
+./build/macos-app.sh amd64            # macOS x86_64 (Intel) variant
 ./build/make-dmg.sh  amd64
+./build/make-windows-installer.sh     # → installer or portable .zip in build/dist/
+./build/make-linux-tarball.sh amd64   # → .tar.gz in build/dist/
+./build/make-phar-dist.sh             # → .phar in build/dist/
 ```
+
+### Phing workflow
+
+The same build is also available through [Phing](https://www.phing.info) targets
+(`build.xml`), for muscle-memory parity with Akeeba's other Boson-based apps:
+
+```bash
+phing git             # compile binaries for every platform (no packaging)
+phing package          # compile + package every platform into build/dist/
+phing run              # compile the binary for THIS host and launch it
+phing release           # package everything, publish a GitHub release, push the update JSON to the CDN
+```
+
+`phing git`/`phing package` mirror `composer build:git`/`composer build:package`
+(added as thin wrappers). `phing release` needs `build/build.properties` — copy
+`build/build.sample.properties` and fill in a GitHub token and CDN FTPS
+credentials; it fails fast with a clear message if they're missing. macOS
+packaging is ad-hoc signed only (see "Releases are unsigned" above), same as
+the plain `build-all.sh` path — Phing doesn't add signing capability Boson
+doesn't otherwise support.
 
 ### Compile output
 
@@ -171,16 +202,19 @@ php vendor/bin/boson compile     # compile all targets only
 
 ### Windows installer
 
-The build pipeline produces a proper Windows installer, `build/output/Akeeba-Extract-Setup.exe`.
+The build pipeline produces a proper Windows installer,
+`build/dist/Akeeba-Extract-<version>-windows-amd64-Setup.exe`.
 
 **Preferred — NSIS (cross-compiles from any OS).** The NSIS `makensis` compiler runs
 natively on macOS and Linux, so the installer is built from `build/windows-installer.nsi`
 without a Windows host. Install it once (`brew install makensis` on macOS, your distro's
-`nsis` package on Linux) and `build/build-all.sh` picks it up automatically. To run it by hand:
+`nsis` package on Linux) and `build/build-all.sh` (or `build/make-windows-installer.sh`)
+picks it up automatically. To run it by hand (both `-D` values are required — there is no
+hardcoded default):
 
 ```bash
 php vendor/bin/boson compile
-makensis -V2 build/windows-installer.nsi
+makensis -V2 -DAPPVERSION=0.1 build/windows-installer.nsi
 ```
 
 **Fallback — Inno Setup (Windows only).** If `makensis` is unavailable but Inno Setup's
@@ -189,10 +223,11 @@ Windows machine with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 
 ```bat
 php vendor/bin/boson compile
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\windows-installer.iss
+"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=0.1 build\windows-installer.iss
 ```
 
-If neither compiler is found, the pipeline produces a portable `Akeeba-Extract-windows-amd64.zip` instead.
+If neither compiler is found, the pipeline produces a portable
+`Akeeba-Extract-<version>-windows-amd64.zip` instead.
 
 ### Known limitations
 

@@ -36,7 +36,7 @@ PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 # ---------------------------------------------------------------------------
 APP_NAME="Akeeba Extract"
 BUNDLE_ID="com.akeeba.extract"
-BUNDLE_VERSION="1.0.0"
+BUNDLE_VERSION="${AKEEBA_EXTRACT_VERSION:-$(sed -nE "s/.*VERSION = '([^']+)'.*/\1/p" "$PROJECT_ROOT/src/App.php" | head -1)}"
 BINARY_NAME="akeeba-extract"
 RUNTIME_DYLIB="libboson-darwin-universal.dylib"
 

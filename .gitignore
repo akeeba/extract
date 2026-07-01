@@ -3,10 +3,15 @@
 
 # Build & packaging output
 /build/output/
+/build/dist/
+/build/.temp/
 /build/*.dmg
 /build/*.exe
 /*.app
 /dist/
+
+# Private build configuration (secrets) — copy build/build.sample.properties
+/build/build.properties
 
 # Planning scratch (internal, not part of the deliverable)
 /.plans/

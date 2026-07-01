@@ -1,0 +1,7 @@
+Akeeba Extract 0.1
+================================================================================
++ First public release
++ Extracts JPA, JPS (AES-encrypted, password-protected), and ZIP archives
++ Handles multi-part archives automatically
++ Selective extraction with glob patterns and a file/folder picker
++ Skip most errors option to continue past unwritable or corrupt entries

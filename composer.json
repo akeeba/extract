@@ -34,12 +34,18 @@
 	},
 	"scripts": {
 		"build": "bash build/build-all.sh",
+		"build:git": "phing git",
+		"build:package": "phing package",
+		"start": "phing run",
 		"post-update-cmd": [
 			"@build"
 		]
 	},
 	"scripts-descriptions": {
-		"build": "Compile and package Akeeba Extract for every supported platform (macOS .app/.dmg, Windows installer/zip, Linux .tar.gz, PHAR)."
+		"build": "Compile and package Akeeba Extract for every supported platform (macOS .app/.dmg, Windows installer/zip, Linux .tar.gz, PHAR).",
+		"build:git": "Compile binaries for every platform via Phing (no installers/DMG packaging). Requires Phing on PATH.",
+		"build:package": "Compile and package every platform via Phing (installers, DMG, tarball, PHAR). Requires Phing on PATH.",
+		"start": "Compile the binary for this host and launch it via Phing. Requires Phing on PATH."
 	},
 	"minimum-stability": "dev",
 	"prefer-stable": true
