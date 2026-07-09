@@ -55,7 +55,7 @@ function akeeba_file_uri_to_path(UriInterface $uri): ?string
 }
 
 // ---------------------------------------------------------------------------
-// Create the Boson application with a fixed window (560 × 440, not maximised)
+// Create the Boson application with a window sized to fit the form without scrollbars
 // ---------------------------------------------------------------------------
 
 $app = new Application(
@@ -64,8 +64,8 @@ $app = new Application(
         schemes: ['app'],
         window: new WindowCreateInfo(
             title:     'Akeeba Extract',
-            width:     580,
-            height:    480,
+            width:     620,
+            height:    620,
             resizable: true,
             webview: new WebViewCreateInfo(
                 contextMenu: false,

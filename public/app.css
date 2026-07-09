@@ -72,6 +72,9 @@ body {
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   overflow-y: auto;
+  /* The layout never needs horizontal scrolling; suppress the stray inactive
+     scrollbar that the webview would otherwise render at the bottom. */
+  overflow-x: hidden;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
@@ -201,6 +204,16 @@ button:disabled {
 }
 
 .btn-danger:hover:not(:disabled) {
+  opacity: 0.85;
+}
+
+/* Green "Start" button */
+.btn-success {
+  background: var(--success);
+  color: #fff;
+}
+
+.btn-success:hover:not(:disabled) {
   opacity: 0.85;
 }
 
@@ -379,6 +392,13 @@ details.warnings-area[open] summary::before {
   cursor: pointer;
 }
 
+/* Keep the "Skip most errors" checkbox and its help marker on one row. */
+.checkbox-field {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
 .field label.checkbox-row input[type="checkbox"] {
   flex: 0 0 auto;
   margin: 0;
@@ -439,24 +459,86 @@ textarea:disabled {
   padding: 0 3px;
 }
 
-/* A button styled as an inline text link (the "Pick a file or directory" action). */
-.btn-link {
-  background: transparent;
-  border: none;
-  color: var(--accent);
+/* A compact secondary button (the "Pick a file or directory" action). */
+.btn-small {
+  height: 28px;
   font-size: 12px;
-  font-weight: 500;
-  height: auto;
-  padding: 0;
+  padding: 0 10px;
 }
 
-.btn-link:hover:not(:disabled) {
-  text-decoration: underline;
-  background: transparent;
+/* ──────────────────────────────────────────────────────────────────────────
+   Section divider between the primary action and the extraction options
+   ────────────────────────────────────────────────────────────────────────── */
+.section-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0;
 }
 
-.btn-link:disabled {
+/* The options card sits below the divider; give its fields extra breathing
+   room so "Files to extract" and "Skip most errors" don't feel squashed. */
+.options-card {
+  gap: 20px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Inline help marker — reveals its explanation as a CSS tooltip on hover/focus
+   (the webview does not render native `title` tooltips reliably).
+   ────────────────────────────────────────────────────────────────────────── */
+.help-icon {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
   color: var(--text-muted);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: help;
+  /* Neutralise the uppercase/letter-spacing inherited from .field label. */
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.help-icon:hover,
+.help-icon:focus {
+  border-color: var(--accent);
+  color: var(--accent);
+  outline: none;
+}
+
+.help-icon::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: max-content;
+  max-width: 260px;
+  padding: 7px 9px;
+  border-radius: 6px;
+  background: var(--text);
+  color: var(--bg);
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+  z-index: 100;
+}
+
+.help-icon:hover::after,
+.help-icon:focus::after {
+  opacity: 1;
+  visibility: visible;
 }
 
 /* ──────────────────────────────────────────────────────────────────────────

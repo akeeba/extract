@@ -46,34 +46,41 @@
         <span class="field-hint">Required for encrypted JPS archives.</span>
       </div>
 
-      <!-- Files to extract (optional glob patterns) -->
-      <div class="field">
-        <div class="field-label-row">
-          <label for="extract-list">Files to extract</label>
-          <button type="button" class="btn-link" id="btn-pick-files" disabled>Pick a file or directory…</button>
-        </div>
-        <textarea id="extract-list" class="monospaced" rows="3"
-                  placeholder="Leave empty to extract everything, or enter one glob pattern per line, e.g.&#10;images/*&#10;config/settings.php"></textarea>
-        <span class="field-hint">One pattern per line. A directory pattern such as <code>images/*</code> extracts everything beneath it.</span>
-      </div>
-
-      <!-- Skip most errors (continue past unwritable / corrupt entries) -->
-      <div class="field">
-        <label class="checkbox-row" for="skip-errors">
-          <input type="checkbox" id="skip-errors">
-          <span>Skip most errors</span>
-        </label>
-        <span class="field-hint">Continue extracting when a file cannot be written (e.g. a name that is
-          valid on Linux but not on Windows) or an entry is corrupt. Skipped files are listed under Warnings.</span>
-      </div>
-
     </div><!-- /.card -->
 
     <!-- Action buttons -->
     <div class="action-row">
       <button type="button" class="btn-danger hidden" id="btn-cancel">Cancel</button>
-      <button type="button" class="btn-primary" id="btn-start" disabled>Start</button>
+      <button type="button" class="btn-success" id="btn-start" disabled>Start</button>
     </div>
+
+    <hr class="section-divider">
+
+    <!-- Extraction options -->
+    <div class="card options-card">
+
+      <!-- Files to extract (optional glob patterns) -->
+      <div class="field">
+        <div class="field-label-row">
+          <label for="extract-list">Files to extract
+            <span class="help-icon" tabindex="0" data-tip="One pattern per line. A directory pattern such as images/* extracts everything beneath it. Leave empty to extract everything.">?</span>
+          </label>
+          <button type="button" class="btn-secondary btn-small" id="btn-pick-files" disabled>Pick a file or directory…</button>
+        </div>
+        <textarea id="extract-list" class="monospaced" rows="3"
+                  placeholder="Leave empty to extract everything, or enter one glob pattern per line, e.g.&#10;images/*&#10;config/settings.php"></textarea>
+      </div>
+
+      <!-- Skip most errors (continue past unwritable / corrupt entries) -->
+      <div class="field checkbox-field">
+        <label class="checkbox-row" for="skip-errors">
+          <input type="checkbox" id="skip-errors">
+          <span>Skip most errors</span>
+        </label>
+        <span class="help-icon" tabindex="0" data-tip="Continue extracting when a file cannot be written (e.g. a name that is valid on Linux but not on Windows) or an entry is corrupt. Skipped files are listed under Warnings.">?</span>
+      </div>
+
+    </div><!-- /.options-card -->
 
     <!-- Progress -->
     <div class="progress-section">
