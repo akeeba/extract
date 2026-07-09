@@ -5,6 +5,7 @@
 /build/output/
 /build/dist/
 /build/.temp/
+/build/sfx/
 /build/*.dmg
 /build/*.exe
 /*.app

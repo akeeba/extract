@@ -23,6 +23,30 @@
 	<property file="${dirs.root}/build/build.properties" override="true" />
 
 	<!--
+	macOS code-signing / notarization defaults. These do NOT override values set in build.properties
+	(above); they merely default to empty so the package-macos-* targets can forward them to the build
+	scripts without leaving an unexpanded ${...} literal when build.properties omits them. Set
+	macos.sign.identity + macos.notary.profile in build.properties to sign+notarize — see
+	build/readme/01-macos-signing.md.
+	-->
+	<property name="macos.sign.identity" value="" />
+	<property name="macos.notary.profile" value="" />
+
+	<!--
+	Windows code-signing defaults (Azure Artifact Signing + Jsign — see
+	build/readme/04-exe-signing-on-macos.md). windows.sign.op-item empty (the default) leaves
+	akeeba-extract.exe / the installer unsigned. Only set these in build.properties, and only sign
+	from package-win-x86 — never git-win-x86 — Azure's Basic tier is capped at 5,000 signatures/month.
+	-->
+	<property name="windows.sign.op-item" value="" />
+	<property name="windows.sign.op-field-appid" value="appId" />
+	<property name="windows.sign.op-field-password" value="password" />
+	<property name="windows.sign.op-field-tenant" value="tenant" />
+	<property name="windows.sign.keystore" value="weu.codesigning.azure.net" />
+	<property name="windows.sign.alias" value="akeeba-signing/AkeebaPublic" />
+	<property name="windows.sign.tsaurl" value="http://timestamp.acs.microsoft.com" />
+
+	<!--
 	Custom Phing tasks live in build/tasks/ under the `tasks\` namespace; the classpath points at build/
 	so `tasks\Foo` resolves to build/tasks/Foo.php.
 	-->
@@ -79,6 +103,28 @@
 	</target>
 
 	<!--
+	The patched sibling-payload micro.sfx runtimes (built by GitHub Actions on the nikosdion/phpmicro
+	fork, rolling "sfx-latest" release) make macOS builds Developer-ID signable — see
+	build/readme/01-macos-signing.md. Download them into the gitignored build/sfx/ when missing.
+	Best-effort on purpose (failonerror=false): offline machines still build fine, they just fall
+	back to the stock (unsignable) Boson runtime. build/fetch-sfx.sh has a force flag to re-download.
+	-->
+	<condition property="sfx.present">
+		<and>
+			<available file="${dirs.root}/build/sfx/macos-aarch64.standard.sfx" type="file" />
+			<available file="${dirs.root}/build/sfx/macos-x86_64.standard.sfx" type="file" />
+		</and>
+	</condition>
+
+	<target name="prepare-sfx" unless="sfx.present"
+			description="Download the patched signable micro.sfx runtimes (only if missing)">
+		<echo>Fetching the patched micro.sfx runtimes into build/sfx/ (best effort)</echo>
+		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="false">
+			<arg value="build/fetch-sfx.sh" />
+		</exec>
+	</target>
+
+	<!--
 	====================================================================================================
 	Tasks - Per-platform binaries
 
@@ -88,7 +134,7 @@
 	====================================================================================================
 	-->
 
-	<target name="git-macos-arm" depends="prepare" description="Compile the macOS (Apple Silicon) binary">
+	<target name="git-macos-arm" depends="prepare,prepare-sfx" description="Compile the macOS (Apple Silicon) binary">
 		<exec executable="php" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="${compile.target.script}" />
 			<arg value="--type=macos" />
@@ -96,7 +142,7 @@
 		</exec>
 	</target>
 
-	<target name="git-macos-x86" depends="prepare" description="Compile the macOS (Intel) binary">
+	<target name="git-macos-x86" depends="prepare,prepare-sfx" description="Compile the macOS (Intel) binary">
 		<exec executable="php" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="${compile.target.script}" />
 			<arg value="--type=macos" />
@@ -233,31 +279,59 @@
 		<echo>Packaged all Akeeba Extract platforms into build/dist/.</echo>
 	</target>
 
+	<!--
+	Signing credentials are forwarded as POSITIONAL ARGS, not <env> entries, then re-exported inside a
+	one-line bash prologue. Phing 3's ExecTask (in passthru mode) forwards <env> by building an
+	UNESCAPED `export KEY=VALUE; …; cmd` shell string, which breaks on any value containing shell
+	metacharacters — e.g. a Developer ID identity "Developer ID Application: … (TEAMID)" or a 1Password
+	item name like "Microsoft Account (previously: Hotmail)" (the parentheses trigger a shell syntax
+	error). Args are passed through as argv and properly escaped, so `export VAR="$1"` reconstructs the
+	exact value regardless of its contents. $0 is a throwaway label; the real values start at $1.
+	-->
 	<target name="package-macos-arm" depends="git-macos-arm" description="Package the macOS (Apple Silicon) .app + .dmg">
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="build/macos-app.sh" />
-			<arg value="arm64" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; exec bash build/macos-app.sh arm64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
 		</exec>
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="build/make-dmg.sh" />
-			<arg value="arm64" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; export MACOS_NOTARY_PROFILE=&quot;$2&quot;; exec bash build/make-dmg.sh arm64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
+			<arg value="${macos.notary.profile}" />
 		</exec>
 	</target>
 
 	<target name="package-macos-x86" depends="git-macos-x86" description="Package the macOS (Intel) .app + .dmg">
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="build/macos-app.sh" />
-			<arg value="amd64" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; exec bash build/macos-app.sh amd64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
 		</exec>
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="build/make-dmg.sh" />
-			<arg value="amd64" />
+			<arg value="-c" />
+			<arg value="export MACOS_SIGN_IDENTITY=&quot;$1&quot;; export MACOS_NOTARY_PROFILE=&quot;$2&quot;; exec bash build/make-dmg.sh amd64" />
+			<arg value="phing" />
+			<arg value="${macos.sign.identity}" />
+			<arg value="${macos.notary.profile}" />
 		</exec>
 	</target>
 
 	<target name="package-win-x86" depends="git-win-x86" description="Package the Windows (x64) installer (or portable .zip)">
 		<exec executable="bash" dir="${dirs.root}" passthru="true" checkreturn="true">
-			<arg value="build/make-windows-installer.sh" />
+			<arg value="-c" />
+			<arg value="export WINDOWS_SIGN_OP_ITEM=&quot;$1&quot;; export WINDOWS_SIGN_OP_FIELD_APPID=&quot;$2&quot;; export WINDOWS_SIGN_OP_FIELD_PASSWORD=&quot;$3&quot;; export WINDOWS_SIGN_OP_FIELD_TENANT=&quot;$4&quot;; export WINDOWS_SIGN_KEYSTORE=&quot;$5&quot;; export WINDOWS_SIGN_ALIAS=&quot;$6&quot;; export WINDOWS_SIGN_TSAURL=&quot;$7&quot;; exec bash build/make-windows-installer.sh" />
+			<arg value="phing" />
+			<arg value="${windows.sign.op-item}" />
+			<arg value="${windows.sign.op-field-appid}" />
+			<arg value="${windows.sign.op-field-password}" />
+			<arg value="${windows.sign.op-field-tenant}" />
+			<arg value="${windows.sign.keystore}" />
+			<arg value="${windows.sign.alias}" />
+			<arg value="${windows.sign.tsaurl}" />
 		</exec>
 	</target>
 

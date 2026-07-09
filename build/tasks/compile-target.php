@@ -105,6 +105,39 @@ if ($matches === [])
 
 $json['target'] = $matches;
 
+// ---------------------------------------------------------------------------
+// Use a custom (patched) SFX runtime when one is present in build/sfx/
+// ---------------------------------------------------------------------------
+// A stock Boson SFX appends the app PHAR after the executable's code-signature
+// region, which makes the binary unsignable. Dropping a patched micro.sfx
+// (built from the nikosdion/phpmicro `sibling-phar` fork — build/fetch-sfx.sh
+// downloads the CI-built ones) into build/sfx/<os>-<cpu>.standard.sfx makes the
+// compiled binary able to load its payload from a sibling "<binary>.phar" file
+// once macos-app.sh splits it, so the executable can be Developer-ID signed.
+// The key is only injected when the file exists: Boson errors out on a dangling
+// `sfx` path, and machines without a custom SFX must keep building normally.
+$sfxCpuMap = ['arm64' => 'aarch64', 'amd64' => 'x86_64'];
+
+foreach ($json['target'] as $i => $target)
+{
+    $targetType = (string) ($target['type'] ?? '');
+    $sfxCpu     = $sfxCpuMap[$target['arch'] ?? ''] ?? null;
+
+    if ($targetType === 'phar' || $targetType === '' || $sfxCpu === null)
+    {
+        continue;
+    }
+
+    $sfxRelative = "build/sfx/{$targetType}-{$sfxCpu}.standard.sfx";
+
+    if (\is_file($root . '/' . $sfxRelative))
+    {
+        \fwrite(\STDOUT, "==> Using custom SFX runtime: {$sfxRelative}\n");
+
+        $json['target'][$i]['sfx'] = $sfxRelative;
+    }
+}
+
 // Pin the root so the filtered config can live in build/.temp without breaking
 // the relative `directories`/`finder` paths (see the header note above).
 $json['root'] = $root;
@@ -143,6 +176,28 @@ foreach (['box.json', 'entrypoint.php', 'akeeba-extract.phar'] as $stale)
 // ---------------------------------------------------------------------------
 // Compile just this target
 // ---------------------------------------------------------------------------
+// Pre-clean each target's output directory: Boson's own cleanup task chokes on
+// leftovers it did not create — notably the "Akeeba Extract.app" bundle (which
+// contains symlinks) assembled there by build/macos-app.sh after a previous
+// build — and then aborts the whole compile.
+foreach ($json['target'] as $target)
+{
+    $targetType = (string) ($target['type'] ?? '');
+
+    if ($targetType === 'phar' || $targetType === '')
+    {
+        continue;
+    }
+
+    $archDir   = ($target['arch'] ?? '') === 'arm64' ? 'aarch64' : 'amd64';
+    $outputDir = $root . "/build/output/{$targetType}/{$archDir}";
+
+    if (\is_dir($outputDir))
+    {
+        \passthru(\sprintf('rm -rf %s', \escapeshellarg($outputDir)));
+    }
+}
+
 $boson = $root . '/vendor/bin/boson';
 
 if (!\is_file($boson))

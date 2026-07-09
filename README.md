@@ -185,10 +185,14 @@ phing release           # package everything, publish a GitHub release, push the
 `phing git`/`phing package` mirror `composer build:git`/`composer build:package`
 (added as thin wrappers). `phing release` needs `build/build.properties` — copy
 `build/build.sample.properties` and fill in a GitHub token and CDN FTPS
-credentials; it fails fast with a clear message if they're missing. macOS
-packaging is ad-hoc signed only (see "Releases are unsigned" above), same as
-the plain `build-all.sh` path — Phing doesn't add signing capability Boson
-doesn't otherwise support.
+credentials; it fails fast with a clear message if they're missing. macOS and
+Windows packaging are signed the same way whether invoked through Phing or the
+plain `build-all.sh` path: `package-macos-arm`/`package-macos-x86` sign +
+notarize the `.app`/`.dmg` when `macos.sign.identity`/`macos.notary.profile`
+are set, and `package-win-x86` Authenticode-signs the `.exe`/installer when
+`windows.sign.op-item` is set — all via the same `build/build.properties`
+credentials documented in `build/readme/`. Leave them blank for an ad-hoc
+signed, unnotarized dev build.
 
 ### Compile output
 
@@ -231,7 +235,7 @@ If neither compiler is found, the pipeline produces a portable
 
 ### Known limitations
 
-* **No code signing or notarization — and this is currently *impossible*, not a decision we've deferred.** `boson compile` produces a phpmicro self-executable whose PHP payload is appended *after* the binary's code-signature region. Apple's `codesign` (and, we expect, Windows `signtool`) requires the signature to be the trailing content of the file, so the appended payload makes signing fail; the payload can't be relocated without breaking startup, since phpmicro locates it as "Mach-O image-end to EOF". We verified this in depth for macOS and, because Boson uses the same binary format on every platform, did not attempt Windows signing. Linux is unaffected (no OS-enforced binary-signature gate). We'll wire up Developer ID signing/notarisation as soon as Boson can emit a signable binary. Until then: macOS users will see a Gatekeeper warning on first launch (right-click → Open to bypass it); Windows users may see a SmartScreen prompt (More info → Run anyway).
+* **macOS builds are code-signed and notarized; Windows builds are Authenticode-signed.** A stock `boson compile` binary can't be signed as-is — the PHP payload is appended *after* the Mach-O/PE code-signature region, which `codesign` rejects outright. macOS builds work around this with a small, additive [patched phpmicro SFX runtime](build/readme/02-signing-architecture.md) that loads its payload from a sibling file instead of an appended one, letting the packaging step split the Boson output into a clean, signable `.app` bundle: it's signed with a Developer ID Application certificate, notarized by Apple, and the ticket is stapled to the `.dmg`. Windows builds are signed directly (no split needed — Authenticode tolerates the appended payload the way `codesign` does not) via Azure Artifact Signing (Jsign) with an RFC3161 timestamp. Both reuse the same shared, org-wide credentials (Apple Developer ID + the Azure `akeeba-signing/AkeebaPublic` profile) as our other Boson-based apps, supplied locally via `build/build.properties` (gitignored, never committed) — see `build/readme/01-macos-signing.md` and `build/readme/04-exe-signing-on-macos.md` for the one-time setup. Linux/PHAR remain unsigned by design — Linux has no OS-enforced binary-signature gate and PHAR has no applicable signing mechanism. Without those credentials (the default for anyone building from source), macOS builds fall back to an ad-hoc, unnotarized signature and Windows builds ship unsigned, so a genuinely notarized/stapled build only happens with the real Apple + Azure credentials in place — a plain `git clone && composer build` will still show a Gatekeeper "unidentified developer" warning on first launch (right-click → Open to bypass it) and Windows users may still see a SmartScreen prompt (More info → Run anyway), same as before.
 * **Windows and Linux binaries are compiled on macOS** via Boson's cross-compilation support but must be run-tested on their respective operating systems.
 * **BZip2 (bz2) extension not bundled.** JPA archives that use BZip2 compression will fail to extract. The standard Boson SFX bundles do not include `bz2`. To add it, build a custom SFX by forking [boson-php/backend-src](https://github.com/boson-php/backend-src) and following the README's "custom extensions" workflow, then reference the custom SFX in `boson.json`.
 * **Boson is pre-1.0** (currently 0.19.x); the API may change between minor versions. Pin `boson-php/compiler` and `boson-php/runtime` versions in `composer.json`.

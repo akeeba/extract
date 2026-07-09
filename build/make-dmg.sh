@@ -115,6 +115,35 @@ rm -f "$TEMP_DMG"
 rm -rf "$STAGING_DIR"
 
 # ---------------------------------------------------------------------------
+# Sign + notarize the finished DMG for distribution
+# ---------------------------------------------------------------------------
+# MACOS_SIGN_IDENTITY  — a "Developer ID Application: …" identity signs the DMG.
+# MACOS_NOTARY_PROFILE — a notarytool keychain profile (see
+#                        build/readme/01-macos-signing.md) additionally submits
+#                        the DMG to Apple and staples the ticket.
+# Both unset → the DMG is left unsigned (previous behaviour, fine for local dev).
+SIGN_IDENTITY="${MACOS_SIGN_IDENTITY:-}"
+NOTARY_PROFILE="${MACOS_NOTARY_PROFILE:-}"
+
+if [[ -n "$SIGN_IDENTITY" ]]; then
+    echo "Signing DMG with Developer ID identity: $SIGN_IDENTITY"
+    codesign --force --timestamp --sign "$SIGN_IDENTITY" "$DMG_OUT"
+fi
+
+if [[ -n "$NOTARY_PROFILE" ]]; then
+    if [[ -z "$SIGN_IDENTITY" ]]; then
+        echo "ERROR: MACOS_NOTARY_PROFILE is set but MACOS_SIGN_IDENTITY is not — notarization requires a signed DMG." >&2
+        exit 1
+    fi
+    echo "Submitting DMG for notarization (profile: $NOTARY_PROFILE) — this can take a few minutes…"
+    xcrun notarytool submit "$DMG_OUT" --keychain-profile "$NOTARY_PROFILE" --wait
+    echo "Stapling notarization ticket…"
+    xcrun stapler staple "$DMG_OUT"
+    xcrun stapler validate "$DMG_OUT"
+    echo "Notarized and stapled: $DMG_OUT"
+fi
+
+# ---------------------------------------------------------------------------
 # Done
 # ---------------------------------------------------------------------------
 echo ""
@@ -123,7 +152,9 @@ echo ""
 echo "Next steps:"
 echo "  - Test: open \"$DMG_OUT\""
 echo "  - Distribute the .dmg to end users."
-echo "  - (Optional) Sign the DMG: codesign --sign 'Developer ID Application: …' \"$DMG_OUT\""
+if [[ -z "$SIGN_IDENTITY" ]]; then
+    echo "  - (Optional) Sign the DMG: codesign --sign 'Developer ID Application: …' \"$DMG_OUT\""
+fi
 echo ""
 echo "=== create-dmg alternative (fancier DMG, if installed) ==="
 echo "  brew install create-dmg"

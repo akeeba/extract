@@ -55,7 +55,16 @@ if [[ ! -f "$BOSON" ]]; then
 fi
 
 # ---------------------------------------------------------------------------
-# 1. Compile all targets (fatal on failure)
+# 1. Fetch the patched sibling-payload micro.sfx runtimes (best effort)
+# ---------------------------------------------------------------------------
+# Makes macOS builds Developer-ID signable — see build/readme/01-macos-signing.md.
+# Offline machines still build fine; affected targets just fall back to the
+# stock (unsignable) Boson runtime.
+heading "Fetching patched micro.sfx runtimes (build/fetch-sfx.sh)"
+bash build/fetch-sfx.sh || warn "could not fetch all patched SFX runtimes — affected targets use the stock runtime"
+
+# ---------------------------------------------------------------------------
+# 2. Compile all targets (fatal on failure)
 # ---------------------------------------------------------------------------
 heading "Compiling binaries for all targets ($BOSON compile)"
 if ! php "$BOSON" compile; then
@@ -64,7 +73,7 @@ if ! php "$BOSON" compile; then
 fi
 
 # ---------------------------------------------------------------------------
-# 2. macOS — .app + .dmg, per architecture (macOS host only; needs hdiutil)
+# 3. macOS — .app + .dmg, per architecture (macOS host only; needs hdiutil)
 # ---------------------------------------------------------------------------
 if [[ "$(uname -s)" == "Darwin" ]]; then
     for ARCH in arm64 amd64; do
@@ -88,7 +97,7 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 3. Linux — .tar.gz (portable: binary + libboson .so + public/)
+# 4. Linux — .tar.gz (portable: binary + libboson .so + public/)
 # ---------------------------------------------------------------------------
 LINUX_BIN="$OUT/linux/amd64/akeeba-extract"
 if [[ -f "$LINUX_BIN" ]]; then

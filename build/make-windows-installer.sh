@@ -47,6 +47,12 @@ if [[ ! -f "$WIN_BIN" ]]; then
     exit 1
 fi
 
+# Sign the compiled binary itself first, so both the installer and the
+# portable .zip fallback below carry a signed akeeba-extract.exe. A no-op
+# unless WINDOWS_SIGN_OP_ITEM is set (see build/sign-windows-exe.sh) — never
+# runs for a local 'phing git-win-x86' compile, only from packaging.
+"$SCRIPT_DIR/sign-windows-exe.sh" "$WIN_BIN"
+
 MAKENSIS="$(command -v makensis 2>/dev/null || true)"
 ISCC="$(command -v iscc 2>/dev/null || command -v ISCC 2>/dev/null || true)"
 
@@ -62,12 +68,16 @@ if [[ -n "$MAKENSIS" ]]; then
         "-DAPPVERSION=$VERSION" \
         "-DVIVERSION=$VIVERSION" \
         build/windows-installer.nsi
+    # Sign the installer executable itself too — it is a PE file end users run directly.
+    "$SCRIPT_DIR/sign-windows-exe.sh" "$OUTFILE"
     echo "Created: $OUTFILE"
 elif [[ -n "$ISCC" ]]; then
     echo "Packaging Windows (amd64): Inno Setup installer (iscc)"
     "$ISCC" "/DAppVersion=$VERSION" build/windows-installer.iss
     OUTFILE="$DIST/Akeeba-Extract-${VERSION}-windows-amd64-Setup.exe"
     mv "build/output/Akeeba-Extract-Setup.exe" "$OUTFILE"
+    # Sign the installer executable itself too — it is a PE file end users run directly.
+    "$SCRIPT_DIR/sign-windows-exe.sh" "$OUTFILE"
     echo "Created: $OUTFILE"
 else
     echo "Packaging Windows (amd64): portable .zip (no installer compiler found)"
