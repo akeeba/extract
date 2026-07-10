@@ -320,6 +320,22 @@ progress::-moz-progress-bar {
 }
 
 /* ──────────────────────────────────────────────────────────────────────────
+   Update banner (non-dismissible, shown when a newer version is available)
+   ────────────────────────────────────────────────────────────────────────── */
+.update-banner {
+  align-items: center;
+  background: rgba(10, 132, 255, 0.12);
+  border: 1px solid rgba(10, 132, 255, 0.4);
+  border-radius: 6px;
+  color: var(--accent);
+  display: flex;
+  font-size: 13px;
+  gap: var(--gap);
+  justify-content: space-between;
+  padding: 10px 14px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
    Warnings (collapsible details element)
    ────────────────────────────────────────────────────────────────────────── */
 .warnings-area {

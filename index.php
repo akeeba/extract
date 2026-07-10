@@ -362,6 +362,37 @@ $app->webview->bindings->bind(
     }
 );
 
+// update.check() → {available, version, infoURL, download}, best-effort;
+// swallows any failure so a broken/offline update check never surfaces to the UI.
+$app->webview->bindings->bind(
+    'update.check',
+    static function (): array {
+        try {
+            $svc = new \Akeeba\Extract\UpdateService(
+                \Akeeba\Extract\App::VERSION,
+                \Akeeba\Extract\Paths::updatesFile()
+            );
+
+            return $svc->status();
+        } catch (\Throwable) {
+            return ['available' => false, 'version' => null, 'infoURL' => null, 'download' => null];
+        }
+    }
+);
+
+// openUrl(url) → open a URL in the user's default web browser (e.g. the
+// release page from the update banner). Best-effort; swallows errors.
+$app->webview->bindings->bind(
+    'openUrl',
+    static function (string $url) use ($app): void {
+        try {
+            $app->dialog->open($url);
+        } catch (\Throwable) {
+            // swallow
+        }
+    }
+);
+
 // ---------------------------------------------------------------------------
 // Start the blocking event loop
 // ---------------------------------------------------------------------------
