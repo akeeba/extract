@@ -263,6 +263,13 @@ final class LanguageService
      * Discovers the shipped language tags by scanning the language directory for
      * `<tag>/<tag>.ini` files. en-GB is always present (the canonical source).
      *
+     * Uses scandir() rather than glob(): glob() does NOT support stream wrappers,
+     * so in a compiled/PHAR build (where the language directory is reached through
+     * a `phar://` path or a Phar::mount) glob() returns nothing and only en-GB
+     * would be found. scandir()/FilesystemIterator work over both a real
+     * filesystem and phar:// (embedded or mounted), so every shipped language is
+     * discovered in all build forms.
+     *
      * @return list<string>
      */
     private function availableTags(): array
@@ -273,12 +280,10 @@ final class LanguageService
 
         $tags = [self::DEFAULT_TAG];
 
-        $dirs = glob($this->basePath . '/language/*', \GLOB_ONLYDIR);
+        $entries = @scandir($this->basePath . '/language');
 
-        foreach ($dirs === false ? [] : $dirs as $dir) {
-            $tag = basename($dir);
-
-            if ($tag === self::DEFAULT_TAG || \in_array($tag, $tags, true)) {
+        foreach ($entries === false ? [] : $entries as $tag) {
+            if ($tag === '.' || $tag === '..' || $tag === self::DEFAULT_TAG || \in_array($tag, $tags, true)) {
                 continue;
             }
 
