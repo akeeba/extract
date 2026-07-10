@@ -178,6 +178,28 @@ $app->webview->addEventListener(
     }
 );
 
+// ---------------------------------------------------------------------------
+// Interface language
+//
+// Resolve the UI language (stored override → OS locale → en-GB) and load the
+// matching catalogue into the engine's AKText table, so engine error/warning
+// messages come out translated. The same catalogue is handed to the front-end
+// as window.__akeebaLang via a document-creation script (scripts->preload runs
+// BEFORE app.js, so the UI never flashes untranslated keys).
+// ---------------------------------------------------------------------------
+
+$language = new \Akeeba\Extract\I18n\LanguageService(
+    new \Akeeba\Extract\Settings(),
+    __DIR__
+);
+$language->load();
+
+$app->webview->scripts->preload(
+    'window.__akeebaLang = '
+    . json_encode($language->catalog(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)
+    . ';'
+);
+
 // Navigate to the UI entry point via the custom scheme
 $app->webview->url = 'app://host/index.html';
 
@@ -390,6 +412,23 @@ $app->webview->bindings->bind(
         } catch (\Throwable) {
             // swallow
         }
+    }
+);
+
+// i18n.setLanguage(tag) → persist the interface-language override ("auto" for
+// automatic OS detection, or a shipped tag such as "el-GR") and return the fresh
+// catalogue so the UI can re-translate itself immediately. Always returns a
+// catalogue, even on error, so the picker stays consistent.
+$app->webview->bindings->bind(
+    'i18n.setLanguage',
+    static function (string $tag) use ($language): array {
+        try {
+            $language->setOverride($tag);
+        } catch (\Throwable) {
+            // fall through and return the current catalogue unchanged
+        }
+
+        return $language->catalog();
     }
 );
 

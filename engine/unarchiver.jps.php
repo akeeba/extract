@@ -746,7 +746,7 @@ class AKUnarchiverJPS extends AKUnarchiverJPA
 				// stream stays aligned; it is simply discarded.
 				if ($this->dataReadLength == 0)
 				{
-					$this->setWarning(AKText::sprintf('Skipped (could not write): %s', $this->fileHeader->realFile));
+					$this->setWarning(AKText::sprintf('SKIPPED_UNWRITABLE_FILE', $this->fileHeader->realFile));
 				}
 			}
 		}

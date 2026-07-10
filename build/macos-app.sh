@@ -183,6 +183,16 @@ else
     echo "           Run 'php vendor/bin/boson compile' so the compiler mounts public/ beside the binary."
 fi
 
+# The language catalogues are mounted the same way (Phar::mount('language', …));
+# without them the engine and UI fall back to raw language keys.
+if [[ -d "$INPUT_DIR/language" ]]; then
+    cp -R "$INPUT_DIR/language" "$RESOURCES_DIR/language"
+    echo "  Copied mounted assets: language/"
+else
+    echo "  WARNING: language/ not found in $INPUT_DIR — text will show raw keys."
+    echo "           Run 'php vendor/bin/boson compile' so the compiler mounts language/ beside the binary."
+fi
+
 # ---------------------------------------------------------------------------
 # Symlink the dylib(s) back under Resources/, pointing at the real (signed)
 # copy in MacOS/, so relative lookups from the phar's Resources/ vantage point

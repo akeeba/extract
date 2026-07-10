@@ -739,7 +739,7 @@ class AKUnarchiverJPA extends AKAbstractUnarchiver
 				if ($this->dataReadLength == 0)
 				{
 					debugMsg('Skipping unwritable output file ' . $this->fileHeader->realFile);
-					$this->setWarning(AKText::sprintf('Skipped (could not write): %s', $this->fileHeader->realFile));
+					$this->setWarning(AKText::sprintf('SKIPPED_UNWRITABLE_FILE', $this->fileHeader->realFile));
 				}
 			}
 		}

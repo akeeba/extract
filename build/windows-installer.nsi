@@ -116,6 +116,11 @@ Section "Install"
     SetOutPath "$INSTDIR\public"
     File /r "${SRCDIR}/public/*.*"
 
+    ; The language catalogues are mounted the same way; without them the engine
+    ; and UI fall back to raw language keys.
+    SetOutPath "$INSTDIR\language"
+    File /r "${SRCDIR}/language/*.*"
+
     ; Shortcuts
     SetOutPath "$INSTDIR"
     CreateDirectory "$SMPROGRAMS\${APPNAME}"
@@ -149,6 +154,7 @@ Section "Uninstall"
     Delete "$INSTDIR\${APPDLL}"
     Delete "$INSTDIR\${APPICON}"
     RMDir /r "$INSTDIR\public"
+    RMDir /r "$INSTDIR\language"
     Delete "$INSTDIR\uninstall.exe"
     RMDir "$INSTDIR"
 

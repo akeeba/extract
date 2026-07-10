@@ -30,7 +30,8 @@
         "mbstring"
     ],
     "mount": [
-        "public"
+        "public",
+        "language"
     ],
     "build": {
         "files": [

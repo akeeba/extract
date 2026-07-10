@@ -88,6 +88,38 @@ body {
   gap: 16px;
 }
 
+/* Top bar holding the interface-language picker, right-aligned. */
+.topbar {
+  display: flex;
+  justify-content: flex-end;
+  /* Pull the following content up: this is a slim control, not a full row. */
+  margin-bottom: -4px;
+}
+
+.language-picker {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+  height: 30px;
+  max-width: 240px;
+  padding: 0 8px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+  transition: border-color 0.15s;
+}
+
+.language-picker:hover {
+  border-color: var(--accent);
+}
+
+.language-picker:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+
 .card {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -737,7 +769,8 @@ textarea:disabled {
    Drag-and-drop hint overlay (shown while a file is dragged over the window)
    ────────────────────────────────────────────────────────────────────────── */
 body.drag-over::after {
-  content: 'Drop your .jpa, .jps or .zip archive to open it';
+  /* Label text comes from app.js (translated) via the data-drop-label attribute. */
+  content: attr(data-drop-label);
   position: fixed;
   inset: 8px;
   display: flex;

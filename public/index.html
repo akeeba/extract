@@ -16,44 +16,49 @@
 </head>
 <body>
   <main class="shell">
+    <!-- Top bar: interface-language picker (populated by app.js) -->
+    <div class="topbar">
+      <select id="language-picker" class="language-picker" aria-label="Language"></select>
+    </div>
+
     <div class="update-banner hidden" id="update-banner" role="status"></div>
 
     <div class="card">
 
       <!-- Archive file -->
       <div class="field">
-        <label for="archive-path">Archive file</label>
+        <label for="archive-path" data-i18n="EXTRACT_LBL_ARCHIVE">Archive file</label>
         <div class="field-row">
-          <input type="text" id="archive-path" readonly placeholder="Select a .jpa, .jps or .zip archive…">
-          <button type="button" class="btn-secondary" id="btn-browse-archive">Browse…</button>
+          <input type="text" id="archive-path" readonly data-i18n-placeholder="EXTRACT_PH_ARCHIVE" placeholder="Select a .jpa, .jps or .zip archive…">
+          <button type="button" class="btn-secondary" id="btn-browse-archive" data-i18n="EXTRACT_BTN_BROWSE">Browse…</button>
         </div>
-        <span class="field-hint" id="drag-hint">…or drag an archive onto this window.</span>
+        <span class="field-hint" id="drag-hint" data-i18n="EXTRACT_HINT_DRAG">…or drag an archive onto this window.</span>
       </div>
 
       <!-- Output folder -->
       <div class="field">
-        <label for="output-dir">Output folder</label>
+        <label for="output-dir" data-i18n="EXTRACT_LBL_OUTPUT">Output folder</label>
         <div class="field-row">
-          <input type="text" id="output-dir" placeholder="Destination folder for extracted files…">
-          <button type="button" class="btn-secondary" id="btn-browse-output">Browse…</button>
+          <input type="text" id="output-dir" data-i18n-placeholder="EXTRACT_PH_OUTPUT" placeholder="Destination folder for extracted files…">
+          <button type="button" class="btn-secondary" id="btn-browse-output" data-i18n="EXTRACT_BTN_BROWSE">Browse…</button>
         </div>
       </div>
 
       <!-- Password (JPS only) -->
       <div class="field hidden" id="password-field">
-        <label for="archive-password">Password</label>
+        <label for="archive-password" data-i18n="EXTRACT_LBL_PASSWORD">Password</label>
         <div class="field-row">
-          <input type="password" id="archive-password" placeholder="Enter decryption password…">
+          <input type="password" id="archive-password" data-i18n-placeholder="EXTRACT_PH_PASSWORD" placeholder="Enter decryption password…">
         </div>
-        <span class="field-hint">Required for encrypted JPS archives.</span>
+        <span class="field-hint" data-i18n="EXTRACT_HINT_PASSWORD">Required for encrypted JPS archives.</span>
       </div>
 
     </div><!-- /.card -->
 
     <!-- Action buttons -->
     <div class="action-row">
-      <button type="button" class="btn-danger hidden" id="btn-cancel">Cancel</button>
-      <button type="button" class="btn-success" id="btn-start" disabled>Start</button>
+      <button type="button" class="btn-danger hidden" id="btn-cancel" data-i18n="EXTRACT_BTN_CANCEL">Cancel</button>
+      <button type="button" class="btn-success" id="btn-start" disabled data-i18n="EXTRACT_BTN_START">Start</button>
     </div>
 
     <hr class="section-divider">
@@ -64,12 +69,13 @@
       <!-- Files to extract (optional glob patterns) -->
       <div class="field">
         <div class="field-label-row">
-          <label for="extract-list">Files to extract
-            <span class="help-icon" tabindex="0" data-tip="One pattern per line. A directory pattern such as images/* extracts everything beneath it. Leave empty to extract everything.">?</span>
+          <label for="extract-list" data-i18n="EXTRACT_LBL_EXTRACTLIST">Files to extract
+            <span class="help-icon" tabindex="0" data-i18n-tip="EXTRACT_TIP_EXTRACTLIST" data-tip="One pattern per line. A directory pattern such as images/* extracts everything beneath it. Leave empty to extract everything.">?</span>
           </label>
-          <button type="button" class="btn-secondary btn-small" id="btn-pick-files" disabled>Pick a file or directory…</button>
+          <button type="button" class="btn-secondary btn-small" id="btn-pick-files" disabled data-i18n="EXTRACT_BTN_PICKFILES">Pick a file or directory…</button>
         </div>
         <textarea id="extract-list" class="monospaced" rows="3"
+                  data-i18n-placeholder="EXTRACT_PH_EXTRACTLIST"
                   placeholder="Leave empty to extract everything, or enter one glob pattern per line, e.g.&#10;images/*&#10;config/settings.php"></textarea>
       </div>
 
@@ -77,9 +83,9 @@
       <div class="field checkbox-field">
         <label class="checkbox-row" for="skip-errors">
           <input type="checkbox" id="skip-errors">
-          <span>Skip most errors</span>
+          <span data-i18n="EXTRACT_LBL_SKIPERRORS">Skip most errors</span>
         </label>
-        <span class="help-icon" tabindex="0" data-tip="Continue extracting when a file cannot be written (e.g. a name that is valid on Linux but not on Windows) or an entry is corrupt. Skipped files are listed under Warnings.">?</span>
+        <span class="help-icon" tabindex="0" data-i18n-tip="EXTRACT_TIP_SKIPERRORS" data-tip="Continue extracting when a file cannot be written (e.g. a name that is valid on Linux but not on Windows) or an entry is corrupt. Skipped files are listed under Warnings.">?</span>
       </div>
 
     </div><!-- /.options-card -->
@@ -93,9 +99,9 @@
     <!-- Result areas -->
     <div class="result-area result-success hidden" id="result-success" role="status">
       <span id="result-success-msg"></span>
-      <button type="button" class="btn-open-folder hidden" id="btn-open-folder">Open Output Folder</button>
+      <button type="button" class="btn-open-folder hidden" id="btn-open-folder" data-i18n="EXTRACT_BTN_OPENFOLDER">Open Output Folder</button>
     </div>
-    <div class="result-area result-cancelled hidden" id="result-cancelled" role="status">
+    <div class="result-area result-cancelled hidden" id="result-cancelled" role="status" data-i18n="EXTRACT_MSG_CANCELLED">
       Extraction was cancelled. Any partially extracted files remain in the output folder.
     </div>
     <div class="result-area result-error hidden" id="result-error" role="alert"></div>
@@ -112,19 +118,19 @@
   <div class="modal-overlay hidden" id="picker-modal" role="dialog" aria-modal="true" aria-labelledby="picker-title">
     <div class="modal">
       <div class="modal-header">
-        <h2 id="picker-title">Pick files and folders to extract</h2>
+        <h2 id="picker-title" data-i18n="EXTRACT_PICKER_TITLE">Pick files and folders to extract</h2>
       </div>
       <div class="modal-body">
         <div class="picker-toolbar">
-          <input type="search" id="picker-filter" placeholder="Filter by name…" autocomplete="off">
+          <input type="search" id="picker-filter" data-i18n-placeholder="EXTRACT_PH_FILTER" placeholder="Filter by name…" autocomplete="off">
           <span class="picker-count" id="picker-count"></span>
         </div>
         <div class="tree" id="picker-tree"></div>
-        <p class="picker-empty hidden" id="picker-empty">This archive contains no files.</p>
+        <p class="picker-empty hidden" id="picker-empty" data-i18n="EXTRACT_PICKER_EMPTY">This archive contains no files.</p>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn-secondary" id="btn-picker-cancel">Cancel</button>
-        <button type="button" class="btn-primary" id="btn-picker-insert" disabled>Insert</button>
+        <button type="button" class="btn-secondary" id="btn-picker-cancel" data-i18n="EXTRACT_BTN_CANCEL">Cancel</button>
+        <button type="button" class="btn-primary" id="btn-picker-insert" disabled data-i18n="EXTRACT_BTN_INSERT">Insert</button>
       </div>
     </div>
   </div>
