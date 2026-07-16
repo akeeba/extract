@@ -119,7 +119,7 @@ echo ""
 # ---------------------------------------------------------------------------
 SIBLING_SFX=0
 MACHO_END=""
-if LC_ALL=C grep -q "next to this executable" "$BINARY_PATH"; then
+if LC_ALL=C grep -aq "next to this executable" "$BINARY_PATH"; then
     MACHO_END="$(otool -l "$BINARY_PATH" 2>/dev/null | awk '
         /cmd LC_SEGMENT_64/ {seg = 1}
         seg && /fileoff/    {fo = $2}
