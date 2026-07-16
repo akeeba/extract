@@ -98,6 +98,12 @@ Source: "{#BinDir}\{#AppPharName}"; DestDir: "{app}"; Flags: ignoreversion
 #endif
 ; Boson WebView runtime DLL — must be beside the .exe
 Source: "{#BinDir}\{#AppDllName}"; DestDir: "{app}"; Flags: ignoreversion
+; UI assets — the runtime mounts public/ relative to the binary; without it the
+; app shows a 404. Must sit next to the .exe.
+Source: "{#BinDir}\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Language catalogues — mounted the same way; without them the engine and UI
+; fall back to raw language keys.
+Source: "{#BinDir}\language\*"; DestDir: "{app}\language"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; Application icon — installed so shortcuts and file associations can show it
 ; (the Boson-compiled .exe carries a generic icon).
 Source: "{#AppIcon}"; DestDir: "{app}"; Flags: ignoreversion
