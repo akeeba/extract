@@ -61,6 +61,7 @@ Unicode true
 !define PUBLISHER  "Nicholas K. Dionysopoulos / Akeeba Ltd"
 !define APPURL     "https://github.com/akeeba/extract"
 !define APPEXE     "akeeba-extract.exe"
+!define APPPHAR    "akeeba-extract.phar"
 !define APPDLL     "libboson-windows-x86_64.dll"
 !define APPICON    "extract.ico"
 !define REGUNINST  "Software\Microsoft\Windows\CurrentVersion\Uninstall\${APPNAME}"
@@ -111,6 +112,16 @@ Section "Install"
     File "${SRCDIR}/${APPDLL}"
     File "/oname=${APPICON}" "${ICONFILE}"
 
+    ; A code-signed build ships the app payload as a sibling PHAR beside the
+    ; signed stub (akeeba-extract.exe), rather than appended to it — Authenticode
+    ; would corrupt an appended PHAR's trailing signature. The patched phpmicro
+    ; stub loads "akeeba-extract.phar" from its own directory at run time.
+    ; HAVE_PHAR is passed by build/make-windows-installer.sh only when it split
+    ; the binary.
+!ifdef HAVE_PHAR
+    File "${SRCDIR}/${APPPHAR}"
+!endif
+
     ; The UI assets must sit next to the executable (the runtime mounts public/
     ; relative to the binary; without it the app shows a 404).
     SetOutPath "$INSTDIR\public"
@@ -151,6 +162,7 @@ SectionEnd
 ; ---- Uninstall -------------------------------------------------------------
 Section "Uninstall"
     Delete "$INSTDIR\${APPEXE}"
+    Delete "$INSTDIR\${APPPHAR}"
     Delete "$INSTDIR\${APPDLL}"
     Delete "$INSTDIR\${APPICON}"
     RMDir /r "$INSTDIR\public"

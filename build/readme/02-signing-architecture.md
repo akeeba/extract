@@ -42,8 +42,8 @@ nikosdion/phpmicro (branch sibling-phar)        ← the C patch lives here
   └─ .github/workflows/build-sfx.yml            ← CI: builds micro.sfx per platform
        │  (stock static-php-cli, pointed at the repo itself via -L)
        ▼
-  GitHub release "sfx-latest" (rolling)         ← macos-{aarch64,x86_64}.standard.sfx + .sha256
-       │
+  GitHub release "sfx-latest" (rolling)         ← macos-{aarch64,x86_64}.standard.sfx
+       │                                           + windows-x86_64.standard.sfx + .sha256
        ▼  build/fetch-sfx.sh                  ← download + SHA-256 verify (auto via
        │                                           Phing prepare-sfx / build-all.sh)
        ▼
@@ -54,11 +54,25 @@ nikosdion/phpmicro (branch sibling-phar)        ← the C patch lives here
        ▼
   boson compile                                 ← stub = OUR runtime, payload appended as usual
        │
-       ▼  build/macos-app.sh                  ← detects patched runtime, SPLITS stub/payload,
-       │                                           Resources layout, signs (ad-hoc or Dev-ID)
-       ▼
-  build/make-dmg.sh                           ← DMG, notarytool submit, staple
+       ├─▼  build/macos-app.sh                 ← detects patched runtime, SPLITS stub/payload,
+       │  │                                        Resources layout, signs (ad-hoc or Dev-ID)
+       │  ▼  build/make-dmg.sh                 ← DMG, notarytool submit, staple
+       │
+       └─▼  build/make-windows-installer.sh    ← detects patched runtime, SPLITS akeeba-extract.exe
+          │                                        into a clean stub + sibling akeeba-extract.phar
+          │                                        (offset from build/tasks/pe-sfxsize.php), signs
+          ▼                                        ONLY the stub (Authenticode via Jsign —
+       Akeeba-Extract-<v>-...-Setup.exe          sign-windows-exe.sh), NSIS/Inno bundle both
+                                                  (installer PE also signed — no PHAR overlay)
 ```
+
+The Windows split is the exact analogue of the macOS one. `pe-sfxsize.php`
+computes the split offset the same way phpmicro's `_micro_init_sfxsize()` does at
+run time — `max(PointerToRawData + SizeOfRawData)` over the PE sections — and
+asserts Boson's extra-ini magic (`fd f6 69 e6`) sits there before splitting, so a
+wrong boundary can never ship. `sign-windows-exe.sh` additionally **refuses** any
+PE that still carries a PHAR overlay (it runs `pe-sfxsize.php` as a tripwire), so
+the combined binary can never be signed by accident.
 
 Key properties:
 
@@ -149,5 +163,5 @@ Key properties:
 | --- | --- |
 | macOS arm64 | **Signed + notarised, verified end-to-end** (CI-built SFX, split bundle, `spctl`: "Notarized Developer ID") |
 | macOS x86_64 | SFX built by CI, sibling mode verified under Rosetta; full sign/notarise pass still to be exercised on a real build |
-| Windows | Signing wired up (Jsign + Azure Artifact Signing, see [`04-exe-signing-on-macos.md`](04-exe-signing-on-macos.md)) — signs the compiled `akeeba-extract.exe`/installer **directly, with no split**, unlike macOS. Authenticode is not known to reject trailing appended data the way `codesign` does (ordinary self-extracting Windows installers routinely carry appended data past their own PE image and still sign/verify), so no sibling-phar patch has been attempted for Windows; whether the resulting signature is fully valid is unconfirmed pending a credentialed dry run |
+| Windows | **Authenticode-signed via split** (Jsign/Azure Artifact Signing). Same trailing-data problem as macOS, same cure: the phpmicro `PHP_WIN32` branch has the sibling-payload fallback, CI builds `windows-x86_64.standard.sfx`, and `make-windows-installer.sh` splits `akeeba-extract.exe` into a signed stub + sibling `akeeba-extract.phar`. Signing the *combined* binary corrupts the PHAR's trailing signature — it fails at startup on `Phar::mapPhar` ("akeeba-extract.exe has a broken signature"); `sign-windows-exe.sh` now refuses to sign a PHAR-bearing PE. See [`04-exe-signing-on-macos.md`](04-exe-signing-on-macos.md) |
 | Linux | No OS-enforced signature gate — nothing to do; stock behaviour everywhere |

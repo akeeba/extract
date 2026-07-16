@@ -26,9 +26,16 @@
 #define AppPublisher "Nicholas K. Dionysopoulos / Akeeba Ltd"
 #define AppURL       "https://github.com/akeeba/extract"
 #define AppExeName   "akeeba-extract.exe"
+#define AppPharName  "akeeba-extract.phar"
 #define AppDllName   "libboson-windows-x86_64.dll"
 #define AppIcon      "extract.ico"
-#define BinDir       "..\build\output\windows\amd64"
+; Source directory for the compiled binaries. make-windows-installer.sh overrides
+; this with /DBinDir=<split staging dir> for a code-signed build, where the app
+; payload ships as a sibling akeeba-extract.phar beside the signed stub rather
+; than appended to it (Authenticode would corrupt an appended PHAR's trailer).
+#ifndef BinDir
+  #define BinDir     "..\build\output\windows\amd64"
+#endif
 
 [Setup]
 ; ---- Identity ----
@@ -83,6 +90,12 @@ Name: "startupicon";   Description: "Launch automatically at &startup"; GroupDes
 [Files]
 ; Main binary
 Source: "{#BinDir}\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+; Sibling PHAR payload for a code-signed (split) build — the patched phpmicro
+; stub loads it from its own directory at run time. HavePhar is passed by
+; make-windows-installer.sh only when it split the binary.
+#ifdef HavePhar
+Source: "{#BinDir}\{#AppPharName}"; DestDir: "{app}"; Flags: ignoreversion
+#endif
 ; Boson WebView runtime DLL — must be beside the .exe
 Source: "{#BinDir}\{#AppDllName}"; DestDir: "{app}"; Flags: ignoreversion
 ; Application icon — installed so shortcuts and file associations can show it
