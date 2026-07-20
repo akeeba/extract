@@ -6,6 +6,8 @@
 /build/dist/
 /build/.temp/
 /build/sfx/
+# Microsoft VC++ runtime DLLs, fetched by build/fetch-vcredist.sh (not ours to redistribute in-tree)
+/build/redist/
 /build/*.dmg
 /build/*.exe
 /*.app

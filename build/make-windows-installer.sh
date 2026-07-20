@@ -83,8 +83,18 @@ if LC_ALL=C grep -aq "next to this executable" "$WIN_BIN"; then
     head -c "$SFXSIZE" "$WIN_BIN" > "$STAGE_SPLIT/akeeba-extract.exe"
     tail -c "+$((SFXSIZE + 1))" "$WIN_BIN" > "$STAGE_SPLIT/akeeba-extract.phar"
     # The runtime DLL and mounted UI/language assets must sit beside the exe
-    # (NSIS/Inno/zip copy them from PKG_DIR).
-    cp "$SRC_DIR"/*.dll "$STAGE_SPLIT/" 2>/dev/null || true
+    # (NSIS/Inno/zip copy them from PKG_DIR). The Boson runtime DLL is NOT
+    # optional — without it the app dies at startup on FFI::cdef — so a missing
+    # one is a hard error here rather than a silently empty glob.
+    shopt -s nullglob
+    WIN_DLLS=("$SRC_DIR"/*.dll)
+    shopt -u nullglob
+    if [[ ${#WIN_DLLS[@]} -eq 0 ]]; then
+        echo "ERROR: no .dll found in $SRC_DIR — expected at least the Boson runtime" >&2
+        echo "       libboson-windows-x86_64.dll, which must ship beside akeeba-extract.exe." >&2
+        exit 1
+    fi
+    cp "${WIN_DLLS[@]}" "$STAGE_SPLIT/"
     [[ -d "$SRC_DIR/public" ]]   && cp -R "$SRC_DIR/public"   "$STAGE_SPLIT/public"
     [[ -d "$SRC_DIR/language" ]] && cp -R "$SRC_DIR/language" "$STAGE_SPLIT/language"
     PKG_DIR="$STAGE_SPLIT"
@@ -105,6 +115,58 @@ else
     echo "      but is not code-signed). Add build/sfx/windows-x86_64.standard.sfx to sign it." >&2
 fi
 
+# Authenticode-sign the native runtime DLL as well as the exe. Windows 11's
+# Smart App Control (on by default on clean installs, and Home edition in
+# particular) refuses to load UNSIGNED binaries into a process even when the
+# process's own exe is signed — so a signed akeeba-extract.exe loading an
+# unsigned libboson-windows-x86_64.dll fails at FFI::cdef with a code-integrity
+# error, not a missing-dependency one. Signing the DLL removes that failure mode
+# by construction. Unlike the exe, the DLL carries no appended PHAR, so
+# sign-windows-exe.sh's combined-binary guard lets it through untouched.
+# NOTE: deliberately globbed as libboson*.dll, NOT *.dll. The Microsoft VC++
+# runtime DLLs staged below already carry Microsoft's own Authenticode
+# signature; re-signing them would strip it, replace it with ours, and burn four
+# extra Azure signatures per build against the 5,000/month cap.
+if [[ "$SIGNING" = 1 ]]; then
+    shopt -s nullglob
+    for dll in "$PKG_DIR"/libboson*.dll; do
+        "$SCRIPT_DIR/sign-windows-exe.sh" "$dll"
+    done
+    shopt -u nullglob
+fi
+
+# ---------------------------------------------------------------------------
+# Microsoft Visual C++ runtime, deployed app-local
+# ---------------------------------------------------------------------------
+# libboson-windows-x86_64.dll imports MSVCP140, MSVCP140_ATOMIC_WAIT,
+# VCRUNTIME140 and VCRUNTIME140_1 — none of which ship with Windows. Rather than
+# telling users to install the VC++ redistributable (which needs admin rights,
+# and these installers are deliberately per-user/lowest-privilege), we ship the
+# four DLLs beside the exe. App-local deployment of the VC++ runtime is
+# permitted by Microsoft's redistributable terms, and the set is self-contained:
+# those four import only each other plus Windows system DLLs.
+#
+# Populate build/redist/win-x64/ with build/fetch-vcredist.sh. Missing files are
+# a warning, not an error — the app still runs anywhere the redistributable is
+# already installed, which is the majority of machines.
+VCREDIST_DIR="$PROJECT_ROOT/build/redist/win-x64"
+HAVE_VCREDIST=0
+if [[ -d "$VCREDIST_DIR" ]]; then
+    shopt -s nullglob
+    VCREDIST_DLLS=("$VCREDIST_DIR"/*.dll)
+    shopt -u nullglob
+    if [[ ${#VCREDIST_DLLS[@]} -gt 0 ]]; then
+        cp "${VCREDIST_DLLS[@]}" "$PKG_DIR/"
+        HAVE_VCREDIST=1
+        echo "Bundling ${#VCREDIST_DLLS[@]} Microsoft VC++ runtime DLL(s) from build/redist/win-x64/"
+    fi
+fi
+if [[ "$HAVE_VCREDIST" = 0 ]]; then
+    echo "  WARNING: build/redist/win-x64/ is empty or absent — the installer will NOT bundle the" >&2
+    echo "           Microsoft VC++ runtime. Users without it installed will fail to start the app." >&2
+    echo "           Run build/fetch-vcredist.sh to populate it." >&2
+fi
+
 MAKENSIS="$(command -v makensis 2>/dev/null || true)"
 ISCC="$(command -v iscc 2>/dev/null || command -v ISCC 2>/dev/null || true)"
 
@@ -122,6 +184,7 @@ if [[ -n "$MAKENSIS" ]]; then
         "-DVIVERSION=$VIVERSION"
     )
     [[ "$HAVE_PHAR" = 1 ]] && NSIS_ARGS+=("-DHAVE_PHAR=1")
+    [[ "$HAVE_VCREDIST" = 1 ]] && NSIS_ARGS+=("-DHAVE_VCREDIST=1")
     # makensis chdir's to the script dir, so pass ABSOLUTE source/output paths.
     "$MAKENSIS" -V2 "${NSIS_ARGS[@]}" build/windows-installer.nsi
     # Sign the installer executable itself too — it is a PE file end users run
@@ -136,6 +199,7 @@ elif [[ -n "$ISCC" ]]; then
     # file on HavePhar).
     ISS_ARGS=("/DAppVersion=$VERSION" "/DBinDir=$PKG_DIR")
     [[ "$HAVE_PHAR" = 1 ]] && ISS_ARGS+=("/DHavePhar=1")
+    [[ "$HAVE_VCREDIST" = 1 ]] && ISS_ARGS+=("/DHaveVCRedist=1")
     "$ISCC" "${ISS_ARGS[@]}" build/windows-installer.iss
     OUTFILE="$DIST/Akeeba-Extract-${VERSION}-windows-amd64-Setup.exe"
     mv "build/output/Akeeba-Extract-Setup.exe" "$OUTFILE"

@@ -63,6 +63,9 @@ fi
 heading "Fetching patched micro.sfx runtimes (build/fetch-sfx.sh)"
 bash build/fetch-sfx.sh || warn "could not fetch all patched SFX runtimes — affected targets use the stock runtime"
 
+heading "Fetching the Microsoft VC++ x64 runtime (build/fetch-vcredist.sh)"
+bash build/fetch-vcredist.sh || warn "could not fetch the VC++ runtime — the Windows installer will not bundle it (users need the redistributable installed)"
+
 # ---------------------------------------------------------------------------
 # 2. Compile all targets (fatal on failure)
 # ---------------------------------------------------------------------------

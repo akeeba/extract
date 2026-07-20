@@ -98,6 +98,17 @@ Source: "{#BinDir}\{#AppPharName}"; DestDir: "{app}"; Flags: ignoreversion
 #endif
 ; Boson WebView runtime DLL — must be beside the .exe
 Source: "{#BinDir}\{#AppDllName}"; DestDir: "{app}"; Flags: ignoreversion
+; Microsoft VC++ runtime, deployed app-local. The Boson DLL imports these four
+; and none ship with Windows, so bundling them avoids sending users to the
+; admin-only VC++ redistributable installer. HaveVCRedist is passed by
+; make-windows-installer.sh only when build/redist/win-x64/ was populated
+; (build/fetch-vcredist.sh).
+#ifdef HaveVCRedist
+Source: "{#BinDir}\msvcp140.dll";              DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\msvcp140_atomic_wait.dll";  DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\vcruntime140.dll";          DestDir: "{app}"; Flags: ignoreversion
+Source: "{#BinDir}\vcruntime140_1.dll";        DestDir: "{app}"; Flags: ignoreversion
+#endif
 ; UI assets — the runtime mounts public/ relative to the binary; without it the
 ; app shows a 404. Must sit next to the .exe.
 Source: "{#BinDir}\public\*"; DestDir: "{app}\public"; Flags: ignoreversion recursesubdirs createallsubdirs

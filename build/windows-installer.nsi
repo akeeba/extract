@@ -110,6 +110,17 @@ Section "Install"
     SetOutPath "$INSTDIR"
     File "${SRCDIR}/${APPEXE}"
     File "${SRCDIR}/${APPDLL}"
+    ; Microsoft VC++ runtime, deployed app-local. ${APPDLL} imports these four
+    ; and none of them ship with Windows; bundling them means the user never
+    ; needs the (admin-only) VC++ redistributable installer. HAVE_VCREDIST is
+    ; passed by make-windows-installer.sh only when build/redist/win-x64/ was
+    ; populated (build/fetch-vcredist.sh).
+!ifdef HAVE_VCREDIST
+    File "${SRCDIR}/msvcp140.dll"
+    File "${SRCDIR}/msvcp140_atomic_wait.dll"
+    File "${SRCDIR}/vcruntime140.dll"
+    File "${SRCDIR}/vcruntime140_1.dll"
+!endif
     File "/oname=${APPICON}" "${ICONFILE}"
 
     ; A code-signed build ships the app payload as a sibling PHAR beside the
@@ -164,6 +175,12 @@ Section "Uninstall"
     Delete "$INSTDIR\${APPEXE}"
     Delete "$INSTDIR\${APPPHAR}"
     Delete "$INSTDIR\${APPDLL}"
+    ; App-local VC++ runtime (unconditional: harmless if never installed, and
+    ; this way an uninstall still cleans up after an older bundled build).
+    Delete "$INSTDIR\msvcp140.dll"
+    Delete "$INSTDIR\msvcp140_atomic_wait.dll"
+    Delete "$INSTDIR\vcruntime140.dll"
+    Delete "$INSTDIR\vcruntime140_1.dll"
     Delete "$INSTDIR\${APPICON}"
     RMDir /r "$INSTDIR\public"
     RMDir /r "$INSTDIR\language"
