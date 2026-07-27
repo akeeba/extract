@@ -170,7 +170,7 @@ Notes:
 The individual packaging scripts can also be run by hand:
 
 ```bash
-php vendor/bin/boson compile          # compile all targets only
+php build/tasks/compile-target.php --all   # compile all targets only
 ./build/macos-app.sh arm64            # → Akeeba Extract.app in build/output/macos/aarch64/
 ./build/make-dmg.sh  arm64            # → Akeeba-Extract-<version>-macos-arm64.dmg in build/dist/
 ./build/macos-app.sh amd64            # macOS x86_64 (Intel) variant
@@ -227,7 +227,7 @@ picks it up automatically. To run it by hand (both `-D` values are required — 
 hardcoded default):
 
 ```bash
-php vendor/bin/boson compile
+php build/tasks/compile-target.php --type=windows --arch=amd64
 makensis -V2 -DAPPVERSION=0.1 build/windows-installer.nsi
 ```
 
@@ -236,7 +236,7 @@ makensis -V2 -DAPPVERSION=0.1 build/windows-installer.nsi
 Windows machine with [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 
 ```bat
-php vendor/bin/boson compile
+php build\tasks\compile-target.php --type=windows --arch=amd64
 "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" /DAppVersion=0.1 build\windows-installer.iss
 ```
 

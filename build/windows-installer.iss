@@ -7,7 +7,7 @@
 ;
 ; Build instructions (run on Windows):
 ;   1. Install Inno Setup 6: https://jrsoftware.org/isinfo.php
-;   2. Run `php vendor/bin/boson compile` to produce build/output/windows/amd64/*.
+;   2. Run `php build/tasks/compile-target.php --all` to produce build/output/windows/amd64/*.
 ;   3. Open this .iss file in the Inno Setup IDE, or from the command line:
 ;      "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" build\windows-installer.iss
 ;   4. The installer appears at: build\output\Akeeba-Extract-Setup.exe

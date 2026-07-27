@@ -9,7 +9,7 @@ composer install                    # dependencies (Boson runtime + compiler)
 php index.php                       # run the app in development (opens the window directly)
 php bin/extract-cli.php [-s] <archive> <destination> [password]   # headless extraction harness
 composer build                      # compile + package every platform into build/dist/
-php vendor/bin/boson compile        # compile all targets only, no packaging
+php build/tasks/compile-target.php --all   # compile all targets only, no packaging
 build/fetch-sfx.sh [--force]        # download the patched signable SFX runtimes into build/sfx/
 ```
 

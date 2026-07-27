@@ -9,7 +9,7 @@
 # Usage:
 #   ./build/make-windows-installer.sh
 #
-# Run `php vendor/bin/boson compile` first to produce the Windows binary in
+# Run `php build/tasks/compile-target.php --all` first to produce the Windows binary in
 # build/output/windows/amd64/.
 #
 # Preferred: NSIS — its `makensis` compiler runs natively on macOS and Linux,
@@ -44,7 +44,7 @@ mkdir -p "$DIST"
 
 if [[ ! -f "$WIN_BIN" ]]; then
     echo "ERROR: Windows binary not found at: $WIN_BIN" >&2
-    echo "Run 'php vendor/bin/boson compile' first." >&2
+    echo "Run 'php build/tasks/compile-target.php --all' first." >&2
     exit 1
 fi
 

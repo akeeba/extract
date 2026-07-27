@@ -11,7 +11,7 @@
 #
 # ARCH can be: arm64 (default) or amd64
 #
-# Run `php vendor/bin/boson compile` first to produce binaries in build/output/.
+# Run `php build/tasks/compile-target.php --all` first to produce binaries in build/output/.
 #
 # The Boson compiler emits, per macOS target:
 #   build/output/macos/aarch64/akeeba-extract          (arm64 binary)
@@ -92,7 +92,7 @@ RESOURCES_DIR="$APP_BUNDLE/Contents/Resources"
 # ---------------------------------------------------------------------------
 if [[ ! -f "$BINARY_PATH" ]]; then
     echo "ERROR: Binary not found at: $BINARY_PATH" >&2
-    echo "Run 'php vendor/bin/boson compile' first." >&2
+    echo "Run 'php build/tasks/compile-target.php --all' first." >&2
     exit 1
 fi
 
@@ -180,7 +180,7 @@ if [[ -d "$INPUT_DIR/public" ]]; then
     echo "  Copied mounted assets: public/"
 else
     echo "  WARNING: public/ not found in $INPUT_DIR — the UI will 404."
-    echo "           Run 'php vendor/bin/boson compile' so the compiler mounts public/ beside the binary."
+    echo "           Run 'php build/tasks/compile-target.php --all' so the compiler mounts public/ beside the binary."
 fi
 
 # The language catalogues are mounted the same way (Phar::mount('language', …));
@@ -190,7 +190,7 @@ if [[ -d "$INPUT_DIR/language" ]]; then
     echo "  Copied mounted assets: language/"
 else
     echo "  WARNING: language/ not found in $INPUT_DIR — text will show raw keys."
-    echo "           Run 'php vendor/bin/boson compile' so the compiler mounts language/ beside the binary."
+    echo "           Run 'php build/tasks/compile-target.php --all' so the compiler mounts language/ beside the binary."
 fi
 
 # ---------------------------------------------------------------------------

@@ -16,7 +16,7 @@
 ;
 ; build/build-all.sh invokes it automatically when `makensis` is on PATH.
 ;
-; Source layout produced by `php vendor/bin/boson compile` (SRCDIR):
+; Source layout produced by `php build/tasks/compile-target.php --all` (SRCDIR):
 ;   akeeba-extract.exe            — main application binary
 ;   libboson-windows-x86_64.dll   — Boson WebView runtime DLL (must sit beside the .exe)
 ;   public/                       — HTML/CSS/JS UI (must sit beside the .exe; mounted at runtime)

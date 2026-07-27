@@ -9,7 +9,7 @@
 # Usage:
 #   ./build/make-phar-dist.sh
 #
-# Run `php vendor/bin/boson compile` first to produce build/output/phar/akeeba-extract.phar.
+# Run `php build/tasks/compile-target.php --all` first to produce build/output/phar/akeeba-extract.phar.
 #
 # Output: build/dist/Akeeba-Extract-<version>.phar
 # ============================================================================
@@ -28,7 +28,7 @@ mkdir -p "$DIST"
 
 if [[ ! -f "$PHAR_SRC" ]]; then
     echo "ERROR: PHAR not found at: $PHAR_SRC" >&2
-    echo "Run 'php vendor/bin/boson compile' first." >&2
+    echo "Run 'php build/tasks/compile-target.php --all' first." >&2
     exit 1
 fi
 

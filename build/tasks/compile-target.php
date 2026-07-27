@@ -25,8 +25,13 @@ declare(strict_types=1);
  *   php build/tasks/compile-target.php --type=windows --arch=amd64
  *   php build/tasks/compile-target.php --type=linux   --arch=amd64
  *   php build/tasks/compile-target.php --type=phar
+ *   php build/tasks/compile-target.php --all
  *
  * The `phar` target carries no architecture, so --arch is omitted for it.
+ * --all keeps every target (build/build-all.sh uses it) — it still goes through
+ * this script so the custom-SFX injection and output-dir pre-cleaning below
+ * apply to the all-targets build too. Calling `boson compile` directly instead
+ * skips both, and silently produces stock-SFX binaries that cannot be signed.
  *
  * Boson resolves `directories`/`finder` paths relative to the config's `root`
  * (which otherwise defaults to the config file's own directory), while `output`
@@ -42,18 +47,19 @@ $root = \dirname(__DIR__, 2);
 // ---------------------------------------------------------------------------
 // Parse --type / --arch arguments
 // ---------------------------------------------------------------------------
-$options = \getopt('', ['type:', 'arch::', 'config::']);
+$options = \getopt('', ['type:', 'arch::', 'config::', 'all']);
+$all     = isset($options['all']);
 $type    = isset($options['type']) ? (string) $options['type'] : '';
 $arch    = isset($options['arch']) ? (string) $options['arch'] : '';
 $config  = isset($options['config']) ? (string) $options['config'] : ($root . '/boson.json');
 
-if ($type === '')
+if (!$all && $type === '')
 {
-    \fwrite(\STDERR, "ERROR: the --type argument is required (macos|windows|linux|phar).\n");
+    \fwrite(\STDERR, "ERROR: the --type argument is required (macos|windows|linux|phar), or pass --all.\n");
     exit(2);
 }
 
-if ($type !== 'phar' && $arch === '')
+if (!$all && $type !== 'phar' && $arch === '')
 {
     \fwrite(\STDERR, "ERROR: the --arch argument is required for the '{$type}' target.\n");
     exit(2);
@@ -76,7 +82,7 @@ if (!\is_array($json) || !isset($json['target']) || !\is_array($json['target']))
     exit(1);
 }
 
-$matches = \array_values(
+$matches = $all ? $json['target'] : \array_values(
     \array_filter(
         $json['target'],
         static function (array $target) use ($type, $arch): bool {
@@ -153,7 +159,7 @@ if (!\is_dir($tempDir) && !\mkdir($tempDir, 0755, true) && !\is_dir($tempDir))
     exit(1);
 }
 
-$label    = $type === 'phar' ? 'phar' : "{$type}-{$arch}";
+$label    = $all ? 'all' : ($type === 'phar' ? 'phar' : "{$type}-{$arch}");
 $tempFile = $tempDir . '/boson.' . $label . '.json';
 
 \file_put_contents(

@@ -69,8 +69,15 @@ bash build/fetch-vcredist.sh || warn "could not fetch the VC++ runtime — the W
 # ---------------------------------------------------------------------------
 # 2. Compile all targets (fatal on failure)
 # ---------------------------------------------------------------------------
-heading "Compiling binaries for all targets ($BOSON compile)"
-if ! php "$BOSON" compile; then
+# Via compile-target.php --all, NOT `boson compile` directly: `boson compile`
+# reads boson.json verbatim, which carries no per-target `sfx` key, so it would
+# silently ignore everything step 1 just downloaded and build against the stock
+# runtime — leaving binaries that cannot be code-signed and a Windows packaging
+# step that then aborts outright. compile-target.php injects the patched SFX
+# paths (and pre-cleans each output directory, which Boson's own cleanup task
+# cannot do once macos-app.sh has assembled a .app bundle there).
+heading "Compiling binaries for all targets (compile-target.php --all)"
+if ! php build/tasks/compile-target.php --all; then
     echo "ERROR: 'boson compile' failed. Aborting." >&2
     exit 1
 fi

@@ -11,7 +11,7 @@
 #
 # ARCH can be: amd64 (default; the only target boson.json currently builds)
 #
-# Run `php vendor/bin/boson compile` first to produce the Linux binary in
+# Run `php build/tasks/compile-target.php --all` first to produce the Linux binary in
 # build/output/linux/<ARCH>/.
 #
 # Output: build/dist/Akeeba-Extract-<version>-linux-<ARCH>.tar.gz
@@ -32,7 +32,7 @@ mkdir -p "$DIST"
 
 if [[ ! -f "$LINUX_BIN" ]]; then
     echo "ERROR: Linux binary not found at: $LINUX_BIN" >&2
-    echo "Run 'php vendor/bin/boson compile' first." >&2
+    echo "Run 'php build/tasks/compile-target.php --all' first." >&2
     exit 1
 fi
 
