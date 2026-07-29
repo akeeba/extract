@@ -49,7 +49,7 @@ warn()    { echo "  WARNING: $*" >&2; WARNINGS+=("$*"); }
 # 0. Guard — is the Boson compiler available? (skip cleanly if not)
 # ---------------------------------------------------------------------------
 if [[ ! -f "$BOSON" ]]; then
-    echo "Akeeba Extract: '$BOSON' not found — skipping build/package."
+    echo "Akeeba Extract: '$BOSON' not found; skipping build/package."
     echo "  Run 'composer install' (with dev dependencies) to enable building."
     exit 0
 fi
@@ -61,10 +61,10 @@ fi
 # Offline machines still build fine; affected targets just fall back to the
 # stock (unsignable) Boson runtime.
 heading "Fetching patched micro.sfx runtimes (build/fetch-sfx.sh)"
-bash build/fetch-sfx.sh || warn "could not fetch all patched SFX runtimes — affected targets use the stock runtime"
+bash build/fetch-sfx.sh || warn "could not fetch all patched SFX runtimes; affected targets use the stock runtime"
 
 heading "Fetching the Microsoft VC++ x64 runtime (build/fetch-vcredist.sh)"
-bash build/fetch-vcredist.sh || warn "could not fetch the VC++ runtime — the Windows installer will not bundle it (users need the redistributable installed)"
+bash build/fetch-vcredist.sh || warn "could not fetch the VC++ runtime; the Windows installer will not bundle it (users need the redistributable installed)"
 
 # ---------------------------------------------------------------------------
 # 2. Compile all targets (fatal on failure)
@@ -99,11 +99,11 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
                 FAIL=1
             fi
         else
-            warn "macOS $ARCH binary missing ($BIN) — skipped"
+            warn "macOS $ARCH binary missing ($BIN); skipped"
         fi
     done
 else
-    warn "Host is not macOS — skipping .app/.dmg packaging (run on macOS to build these)"
+    warn "Host is not macOS; skipping .app/.dmg packaging (run on macOS to build these)"
 fi
 
 # ---------------------------------------------------------------------------
@@ -119,7 +119,7 @@ if [[ -f "$LINUX_BIN" ]]; then
         FAIL=1
     fi
 else
-    warn "Linux binary missing ($LINUX_BIN) — skipped"
+    warn "Linux binary missing ($LINUX_BIN); skipped"
 fi
 
 # ---------------------------------------------------------------------------
@@ -138,7 +138,7 @@ if [[ -f "$WIN_BIN" ]]; then
         FAIL=1
     fi
 else
-    warn "Windows binary missing ($WIN_BIN) — skipped"
+    warn "Windows binary missing ($WIN_BIN); skipped"
 fi
 
 # ---------------------------------------------------------------------------

@@ -6,7 +6,7 @@
   ~ @license    GNU General Public License version 3, or later
   -->
 
-<project name="AkeebaExtract" description="Akeeba Extract — desktop Akeeba Backup archive extractor" default="git" basedir=".">
+<project name="AkeebaExtract" description="Akeeba Extract: desktop Akeeba Backup archive extractor" default="git" basedir=".">
 
 	<property name="dirs.root" value="${phing.dir}" />
 	<property name="dirs.dist" value="${dirs.root}/build/dist" />
@@ -62,7 +62,7 @@
 
 	<!-- Default target: build the native binaries for every platform (no installers / DMG packaging). -->
 	<target name="git"
-			description="Build the application for all platforms (binaries only — no installers/DMG)"
+			description="Build the application for all platforms (binaries only, no installers/DMG)"
 			depends="git-macos-arm,git-macos-x86,git-win-x86,git-linux-x86,git-phar">
 		<echo>Built all Akeeba Extract targets (binaries only). Run 'phing package' for installers/DMG packaging.</echo>
 	</target>
@@ -96,7 +96,7 @@
 
 	<target name="prepare-composer" unless="composer.present"
 			description="Install the Composer dependencies (only if vendor/ is missing)">
-		<echo>Composer dependencies missing — running composer install</echo>
+		<echo>Composer dependencies missing; running composer install</echo>
 		<exec executable="composer" dir="${dirs.root}" passthru="true" checkreturn="true">
 			<arg value="install" />
 		</exec>
@@ -189,7 +189,7 @@
 			description="Compile the binary for THIS host and launch it">
 		<fail unless="run.compile.target"
 			  message="Unsupported host for 'run' (OS/arch not recognised). Supported: macOS on arm64/x86_64, Linux on x86_64, Windows on x86_64." />
-		<echo>Host: ${run.label} — compiling (${run.compile.target}) then launching ${run.bindir}/${run.binname}</echo>
+		<echo>Host: ${run.label} - compiling (${run.compile.target}) then launching ${run.bindir}/${run.binname}</echo>
 		<phingcall target="${run.compile.target}" />
 		<exec executable="${run.exec}" dir="${run.bindir}" passthru="true" checkreturn="true" />
 	</target>
@@ -361,7 +361,7 @@
 	-->
 
 	<target name="all" depends="package"
-			description="Alias for 'package' — build and package every platform" />
+			description="Alias for 'package': build and package every platform" />
 
 	<target name="release" depends="all"
 			description="Build, publish a GitHub release with the artifacts, and push akeeba-extract.json to the CDN">
@@ -371,8 +371,8 @@
 			<arg value="--print" />
 		</exec>
 
-		<fail unless="github.token" message="release: github.token is not set — copy build/build.sample.properties to build/build.properties and fill it in." />
-		<fail unless="cdn.ftp.password" message="release: cdn.ftp.* is not set — copy build/build.sample.properties to build/build.properties and fill it in." />
+		<fail unless="github.token" message="release: github.token is not set. Copy build/build.sample.properties to build/build.properties and fill it in." />
+		<fail unless="cdn.ftp.password" message="release: cdn.ftp.* is not set. Copy build/build.sample.properties to build/build.properties and fill it in." />
 
 		<echo>Releasing Akeeba Extract ${version} to ${github.organization}/${github.repository}</echo>
 

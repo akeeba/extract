@@ -136,7 +136,7 @@ if [[ "$SIBLING_SFX" != 1 ]]; then
     echo "  Either it was compiled against a STOCK phpmicro SFX (whose appended PHP" >&2
     echo "  payload makes it unsignable), or no payload could be located past its" >&2
     echo "  code signature. Run build/fetch-sfx.sh to fetch the patched" >&2
-    echo "  'sibling-phar' SFX into build/sfx/, then recompile — see" >&2
+    echo "  'sibling-phar' SFX into build/sfx/, then recompile; see" >&2
     echo "  build/readme/01-macos-signing.md." >&2
     exit 1
 fi
@@ -164,7 +164,7 @@ if [[ -f "$INPUT_DIR/$RUNTIME_DYLIB" ]]; then
     cp "$INPUT_DIR/$RUNTIME_DYLIB" "$MACOS_DIR/$RUNTIME_DYLIB"
     echo "  Copied dylib: $RUNTIME_DYLIB"
 else
-    echo "  WARNING: $RUNTIME_DYLIB not found in $INPUT_DIR — WebView may not work."
+    echo "  WARNING: $RUNTIME_DYLIB not found in $INPUT_DIR; WebView may not work."
 fi
 
 # ---------------------------------------------------------------------------
@@ -179,7 +179,7 @@ if [[ -d "$INPUT_DIR/public" ]]; then
     cp -R "$INPUT_DIR/public" "$RESOURCES_DIR/public"
     echo "  Copied mounted assets: public/"
 else
-    echo "  WARNING: public/ not found in $INPUT_DIR — the UI will 404."
+    echo "  WARNING: public/ not found in $INPUT_DIR; the UI will 404."
     echo "           Run 'php build/tasks/compile-target.php --all' so the compiler mounts public/ beside the binary."
 fi
 
@@ -189,7 +189,7 @@ if [[ -d "$INPUT_DIR/language" ]]; then
     cp -R "$INPUT_DIR/language" "$RESOURCES_DIR/language"
     echo "  Copied mounted assets: language/"
 else
-    echo "  WARNING: language/ not found in $INPUT_DIR — text will show raw keys."
+    echo "  WARNING: language/ not found in $INPUT_DIR; text will show raw keys."
     echo "           Run 'php build/tasks/compile-target.php --all' so the compiler mounts language/ beside the binary."
 fi
 
@@ -286,8 +286,8 @@ if [[ -f "$ICON_SRC" ]]; then
         "$APP_BUNDLE/Contents/Info.plist" 2>/dev/null || true
     echo "  Copied icon: AppIcon.icns"
 else
-    echo "  NOTE: No AppIcon.icns found at build/AppIcon.icns — bundle has no icon."
-    echo "        Create a 1024×1024 PNG, convert with 'iconutil', and save as build/AppIcon.icns."
+    echo "  NOTE: No AppIcon.icns found at build/AppIcon.icns; bundle has no icon."
+    echo "        Create a 1024x1024 PNG, convert with 'iconutil', and save as build/AppIcon.icns."
 fi
 
 # ---------------------------------------------------------------------------
@@ -310,7 +310,7 @@ ENTITLEMENTS="${MACOS_ENTITLEMENTS:-$PROJECT_ROOT/build/macos/entitlements.plist
 
 if [[ -n "$SIGN_IDENTITY" ]]; then
     if ! command -v codesign &>/dev/null; then
-        echo "ERROR: MACOS_SIGN_IDENTITY is set but 'codesign' was not found — install Xcode or the Command Line Tools." >&2
+        echo "ERROR: MACOS_SIGN_IDENTITY is set but 'codesign' was not found; install Xcode or the Command Line Tools." >&2
         exit 1
     fi
     if [[ ! -f "$ENTITLEMENTS" ]]; then
@@ -336,7 +336,7 @@ if [[ -n "$SIGN_IDENTITY" ]]; then
     codesign --verify --deep --strict --verbose=2 "$APP_BUNDLE"
     echo "  Signed and verified: $APP_BUNDLE"
 elif command -v codesign &>/dev/null; then
-    echo "  MACOS_SIGN_IDENTITY not set — ad-hoc signing (local dev only, not notarizable)"
+    echo "  MACOS_SIGN_IDENTITY not set; ad-hoc signing (local dev only, not notarizable)"
     for dylib in "$MACOS_DIR"/*.dylib; do
         [[ -f "$dylib" ]] && codesign --force --sign - "$dylib" >/dev/null 2>&1 || true
     done
@@ -353,4 +353,4 @@ echo "Created: $APP_BUNDLE"
 echo ""
 echo "Next steps:"
 echo "  1. Run ./build/make-dmg.sh $ARCH  to create the distributable .dmg"
-echo "  2. (Optional) Notarize with: xcrun notarytool submit … --wait"
+echo "  2. (Optional) Notarize with: xcrun notarytool submit ... --wait"

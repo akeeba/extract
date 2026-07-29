@@ -57,7 +57,7 @@ if [ "$FORCE" != 1 ]; then
         [ -f "$DEST/$n.dll" ] || ALL_PRESENT=0
     done
     if [ "$ALL_PRESENT" = 1 ]; then
-        echo "✓ VC++ runtime DLLs already present in build/redist/win-x64/ (use --force to refresh)"
+        echo "OK: VC++ runtime DLLs already present in build/redist/win-x64/ (use --force to refresh)"
         exit 0
     fi
 fi
@@ -71,9 +71,9 @@ fi
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
-echo "Downloading the Microsoft VC++ x64 redistributable …"
+echo "Downloading the Microsoft VC++ x64 redistributable ..."
 if ! curl -fsSL -o "$TMP/vc_redist.x64.exe" "$URL"; then
-    echo "  ✗ download failed — $URL" >&2
+    echo "  ERROR: download failed: $URL" >&2
     exit 1
 fi
 
@@ -82,7 +82,7 @@ fi
 # second (attached) container holds the payload MSIs and cabinets, one of which
 # carries the x64 CRT. 7-Zip only unpacks the UX container, so we locate the
 # attached one by scanning for the second MSCF magic and carve it out.
-echo "Locating the attached payload container …"
+echo "Locating the attached payload container ..."
 OFFSET="$(python3 - "$TMP/vc_redist.x64.exe" <<'PY'
 import sys
 d = open(sys.argv[1], 'rb').read()
@@ -99,7 +99,7 @@ PY
 )"
 
 if [ "$OFFSET" -lt 0 ]; then
-    echo "  ✗ could not find the attached cabinet inside vc_redist.x64.exe." >&2
+    echo "  ERROR: could not find the attached cabinet inside vc_redist.x64.exe." >&2
     echo "    Microsoft may have changed the bundle format; extract manually." >&2
     exit 1
 fi
@@ -126,7 +126,7 @@ for f in "$TMP/att"/*; do
 done
 
 if [ -z "$CRTCAB" ]; then
-    echo "  ✗ no payload cabinet containing the x64 CRT was found." >&2
+    echo "  ERROR: no payload cabinet containing the x64 CRT was found." >&2
     exit 1
 fi
 
@@ -136,9 +136,9 @@ for n in "${WANTED[@]}"; do
     if cabextract -q -F "$n.dll_amd64" -d "$TMP" "$CRTCAB" >/dev/null 2>&1 \
        && [ -f "$TMP/$n.dll_amd64" ]; then
         mv "$TMP/$n.dll_amd64" "$DEST/$n.dll"
-        echo "  ✓ $n.dll ($(stat -f%z "$DEST/$n.dll") bytes)"
+        echo "  OK: $n.dll ($(stat -f%z "$DEST/$n.dll") bytes)"
     else
-        echo "  ✗ $n.dll_amd64 not found in $(basename "$CRTCAB")" >&2
+        echo "  ERROR: $n.dll_amd64 not found in $(basename "$CRTCAB")" >&2
         FAILED=1
     fi
 done

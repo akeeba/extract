@@ -90,7 +90,7 @@ if LC_ALL=C grep -aq "next to this executable" "$WIN_BIN"; then
     WIN_DLLS=("$SRC_DIR"/*.dll)
     shopt -u nullglob
     if [[ ${#WIN_DLLS[@]} -eq 0 ]]; then
-        echo "ERROR: no .dll found in $SRC_DIR — expected at least the Boson runtime" >&2
+        echo "ERROR: no .dll found in $SRC_DIR; expected at least the Boson runtime" >&2
         echo "       libboson-windows-x86_64.dll, which must ship beside akeeba-extract.exe." >&2
         exit 1
     fi
@@ -108,10 +108,10 @@ elif [[ "$SIGNING" = 1 ]]; then
     echo "  after the executable. Signing it would append the certificate past the PHAR" >&2
     echo "  and corrupt its trailing signature (Phar::mapPhar fails at startup)." >&2
     echo "  Build the patched sibling-payload SFX into build/sfx/windows-x86_64.standard.sfx" >&2
-    echo "  (build/fetch-sfx.sh) and recompile — see build/readme/02-signing-architecture.md." >&2
+    echo "  (build/fetch-sfx.sh) and recompile; see build/readme/02-signing-architecture.md." >&2
     exit 1
 else
-    echo "Note: unpatched Boson SFX — shipping the UNSIGNED combined akeeba-extract.exe (it works," >&2
+    echo "Note: unpatched Boson SFX; shipping the UNSIGNED combined akeeba-extract.exe (it works," >&2
     echo "      but is not code-signed). Add build/sfx/windows-x86_64.standard.sfx to sign it." >&2
 fi
 
@@ -162,7 +162,7 @@ if [[ -d "$VCREDIST_DIR" ]]; then
     fi
 fi
 if [[ "$HAVE_VCREDIST" = 0 ]]; then
-    echo "  WARNING: build/redist/win-x64/ is empty or absent — the installer will NOT bundle the" >&2
+    echo "  WARNING: build/redist/win-x64/ is empty or absent; the installer will NOT bundle the" >&2
     echo "           Microsoft VC++ runtime. Users without it installed will fail to start the app." >&2
     echo "           Run build/fetch-vcredist.sh to populate it." >&2
 fi
@@ -208,7 +208,7 @@ elif [[ -n "$ISCC" ]]; then
     echo "Created: $OUTFILE"
 else
     echo "Packaging Windows (amd64): portable .zip (no installer compiler found)"
-    echo "  No installer compiler found — produced a portable .zip. Install NSIS ('brew install makensis') for a native Windows installer, or build build/windows-installer.iss on Windows." >&2
+    echo "  No installer compiler found; produced a portable .zip. Install NSIS ('brew install makensis') for a native Windows installer, or build build/windows-installer.iss on Windows." >&2
     STAGE="$PROJECT_ROOT/build/output/.stage-win/Akeeba Extract"
     rm -rf "$PROJECT_ROOT/build/output/.stage-win"; mkdir -p "$STAGE"
     # PKG_DIR is the split staging dir (stub + akeeba-extract.phar + dll +
@@ -221,7 +221,7 @@ else
         ( cd "$PROJECT_ROOT/build/output/.stage-win" && zip -qr "$ZIP_OUT" "Akeeba Extract" )
         echo "Created: $ZIP_OUT"
     else
-        echo "ERROR: 'zip' not available — could not produce the portable .zip." >&2
+        echo "ERROR: 'zip' not available; could not produce the portable .zip." >&2
         rm -rf "$PROJECT_ROOT/build/output/.stage-win"
         exit 1
     fi

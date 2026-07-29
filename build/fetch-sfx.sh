@@ -40,14 +40,14 @@ FAILED=0
 for asset in "${ASSETS[@]}"; do
   target="$ROOT/build/sfx/$asset"
   if [ -f "$target" ] && [ "$FORCE" != 1 ]; then
-    echo "✓ $asset already present (use --force to re-download)"
+    echo "OK: $asset already present (use --force to re-download)"
     continue
   fi
 
-  echo "Downloading $asset …"
+  echo "Downloading $asset ..."
   tmp="$(mktemp)"
   if ! curl -fsSL -o "$tmp" "$BASE_URL/$asset"; then
-    echo "  ✗ download failed — $BASE_URL/$asset" >&2
+    echo "  ERROR: download failed: $BASE_URL/$asset" >&2
     rm -f "$tmp"
     FAILED=1
     continue
@@ -57,18 +57,18 @@ for asset in "${ASSETS[@]}"; do
   if sum_expected="$(curl -fsSL "$BASE_URL/$asset.sha256" 2>/dev/null | awk '{print $1}')" && [ -n "$sum_expected" ]; then
     sum_actual="$(shasum -a 256 "$tmp" | awk '{print $1}')"
     if [ "$sum_actual" != "$sum_expected" ]; then
-      echo "  ✗ checksum mismatch for $asset (expected $sum_expected, got $sum_actual)" >&2
+      echo "  ERROR: checksum mismatch for $asset (expected $sum_expected, got $sum_actual)" >&2
       rm -f "$tmp"
       FAILED=1
       continue
     fi
   else
-    echo "  (no .sha256 published — skipping checksum verification)"
+    echo "  (no .sha256 published; skipping checksum verification)"
   fi
 
   mv "$tmp" "$target"
   chmod 755 "$target"
-  echo "  ✓ $target"
+  echo "  OK: $target"
 done
 
 exit $FAILED

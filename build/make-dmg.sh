@@ -83,7 +83,7 @@ ln -s /Applications "$STAGING_DIR/Applications"
 STAGING_BYTES=$(du -sk "$STAGING_DIR" | awk '{print $1}')
 DMG_MB=$(( (STAGING_BYTES / 1024) + 20 ))
 
-echo "  Staging size : ${STAGING_BYTES} KB → DMG capacity ${DMG_MB} MB"
+echo "  Staging size : ${STAGING_BYTES} KB -> DMG capacity ${DMG_MB} MB"
 
 # ---------------------------------------------------------------------------
 # Create the DMG via hdiutil
@@ -132,12 +132,12 @@ fi
 
 if [[ -n "$NOTARY_PROFILE" ]]; then
     if [[ -z "$SIGN_IDENTITY" ]]; then
-        echo "ERROR: MACOS_NOTARY_PROFILE is set but MACOS_SIGN_IDENTITY is not — notarization requires a signed DMG." >&2
+        echo "ERROR: MACOS_NOTARY_PROFILE is set but MACOS_SIGN_IDENTITY is not; notarization requires a signed DMG." >&2
         exit 1
     fi
-    echo "Submitting DMG for notarization (profile: $NOTARY_PROFILE) — this can take a few minutes…"
+    echo "Submitting DMG for notarization (profile: $NOTARY_PROFILE); this can take a few minutes..."
     xcrun notarytool submit "$DMG_OUT" --keychain-profile "$NOTARY_PROFILE" --wait
-    echo "Stapling notarization ticket…"
+    echo "Stapling notarization ticket..."
     xcrun stapler staple "$DMG_OUT"
     xcrun stapler validate "$DMG_OUT"
     echo "Notarized and stapled: $DMG_OUT"
@@ -153,7 +153,7 @@ echo "Next steps:"
 echo "  - Test: open \"$DMG_OUT\""
 echo "  - Distribute the .dmg to end users."
 if [[ -z "$SIGN_IDENTITY" ]]; then
-    echo "  - (Optional) Sign the DMG: codesign --sign 'Developer ID Application: …' \"$DMG_OUT\""
+    echo "  - (Optional) Sign the DMG: codesign --sign 'Developer ID Application: ...' \"$DMG_OUT\""
 fi
 echo ""
 echo "=== create-dmg alternative (fancier DMG, if installed) ==="

@@ -48,7 +48,7 @@ fi
 
 OP_ITEM="${WINDOWS_SIGN_OP_ITEM:-}"
 if [[ -z "$OP_ITEM" ]]; then
-    echo "Windows code signing not configured (windows.sign.op-item is empty) — leaving $EXE unsigned."
+    echo "Windows code signing not configured (windows.sign.op-item is empty); leaving $EXE unsigned."
     exit 0
 fi
 
@@ -63,10 +63,10 @@ fi
 # build/make-windows-installer.sh does exactly that. See
 # build/readme/02-signing-architecture.md.
 if php "$PROJECT_ROOT/build/tasks/pe-sfxsize.php" "$EXE" >/dev/null 2>&1; then
-    echo "ERROR: refusing to sign $EXE — it is a phpmicro combined binary carrying an" >&2
+    echo "ERROR: refusing to sign $EXE: it is a phpmicro combined binary carrying an" >&2
     echo "       appended PHAR. Signing would corrupt the PHAR's trailing signature and the" >&2
     echo "       app would fail to start (Phar::mapPhar). Split it into a clean stub + sibling" >&2
-    echo "       akeeba-extract.phar first — build/make-windows-installer.sh handles this." >&2
+    echo "       akeeba-extract.phar first; build/make-windows-installer.sh handles this." >&2
     exit 1
 fi
 
@@ -109,7 +109,7 @@ jsign \
 # chain as untrusted even for a correctly-signed file. Never gate the build on
 # this — read the printed details instead.
 if command -v osslsigncode >/dev/null 2>&1; then
-    echo "--- osslsigncode verify (informational only — see build/readme/04-exe-signing-on-macos.md) ---"
+    echo "--- osslsigncode verify (informational only; see build/readme/04-exe-signing-on-macos.md) ---"
     osslsigncode verify "$EXE" || true
     echo "--- end osslsigncode verify ---"
 fi
