@@ -3,7 +3,7 @@
 Extracts **Akeeba Backup** archives on your desktop.
 
 > [!IMPORTANT]
-> This repository is still in a Technology Preview stage. Use at your own risk.
+> Developing and maintaining world-class software is neither easy nor free. The development of this software is subsidised by sales of our commercial offerings. If you like this software and would like to see it maintained in the future, please consider [purchasing a subscription](https://www.akeeba.com/subscribe.html) to one of our commercial offerings. _Thank you!_
 
 This application supports **JPA**, encrypted **JPS**, and standard **ZIP**. It is cross-platform; it runs on macOS, Windows, and Linux.
 
