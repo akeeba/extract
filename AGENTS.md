@@ -2,6 +2,8 @@
 
 This file provides guidance to coding agents when working with code in this repository.
 
+Akeeba Extract is a desktop app (PHP + Boson) that extracts JPA, JPS and ZIP backup archives. `engine/` is a locally patched vendored copy of the Kickstart unarchiver; `src/` is the GUI-free service layer; `index.php` is the Boson wiring; `public/` is the WebView UI.
+
 ## Commands
 
 ```bash
@@ -13,166 +15,28 @@ php build/tasks/compile-target.php --all   # compile all targets only, no packag
 build/fetch-sfx.sh [--force]        # download the patched signable SFX runtimes into build/sfx/
 ```
 
-Phing targets (`build.xml`) mirror the same pipeline: `phing git` (compile only), `phing package`,
-`phing run` (compile for this host and launch), `phing release` (package + GitHub release + CDN
-upload; needs `build/build.properties`). See README.md for the full packaging matrix, signing
-setup, and platform caveats.
+There is **no automated test suite**; verify with `php bin/extract-cli.php` against real archives.
 
-### Testing
+## Always-on rules
 
-There is **no automated test suite** — no PHPUnit, no linter, no static-analysis config. Verify
-changes by running `php bin/extract-cli.php` against real archives (it exercises the same
-`ExtractorService` the GUI uses, minus Boson) and by launching the app with `php index.php`.
-Windows and Linux binaries cross-compile on macOS but can only be run-tested on their own OS.
-
-### Version bumps
-
-The version lives in exactly one place: the topmost `CHANGELOG` entry. `build/tasks/set-version.php`
-stamps it into `src/App.php`'s `VERSION` constant on every build, and the packaging scripts read it
-back from there. Bump the version by adding a `CHANGELOG` entry — never by editing `src/App.php`.
-
-## Architecture
-
-Four layers, deliberately decoupled:
-
-**`engine/`** — a vendored copy of the [Akeeba Kickstart](https://github.com/akeeba/kickstart)
-unarchiver (`AKFactory`, `AKAbstractUnarchiver`, the JPA/JPS/ZIP unarchivers, AES, `AKText`).
-It is **patched locally**, not a pristine upstream copy: `kickstart.setup.dryrun`,
-`kickstart.setup.ignoreerrors`, `kickstart.setup.extract_list`, and the `type` field on the
-`startfile` observer message are additions made here. Re-syncing from upstream means re-applying
-those patches, not overwriting the directory.
-
-**`src/`** — the GUI-free service layer (`Akeeba\Extract\`, PSR-4). Contains no Boson references at
-all, which is what lets the CLI harness and the desktop app share it.
-
-**`index.php`** — Boson wiring: creates the window, serves `public/` over a custom `app://` scheme,
-registers the JS↔PHP bindings, and runs the blocking event loop.
-
-**`public/`** — the WebView UI (`index.html` / `app.css` / `app.js`). Vanilla ES5-style IIFE, no
-framework, no bundler, no npm — the files are served verbatim. Keep it that way.
-
-### Engine bootstrap contract
-
-`src/Bootstrap.php` must be required **exactly once** and loads every engine file in a strict
-dependency order that is documented inline — reordering the `require_once` calls breaks class
-resolution. It also defines `KICKSTART` (which suppresses Kickstart's Joomla/WordPress-specific
-skip-file list) and `KSROOTDIR`. The engine's web-controller files (`mastersetup.php`,
-`application.php`) are deliberately **not** vendored, which is why the `$_REQUEST`-touching helpers
-in `preamble.php` are never reached.
-
-### Extraction protocol
-
-`ExtractorService` wraps the engine in a `begin()` / `step()` / `cancel()` API:
-
-- The engine is **stateful and single-threaded**. `begin()` calls `AKFactory::nuke()` first; never
-  start a second run without finishing or cancelling the first.
-- `step()` performs one time-bounded engine tick (~1 s, via `kickstart.tuning.max_exec_time`) and
-  must reset the timer each time. Callers loop until `done` is true.
-- Warnings are read with `$engine->getWarnings()`, **not** from `getStatusArray()['Warnings']` — the
-  status array returns only the delta since the previous tick, so earlier warnings would be lost.
-- Faithful extraction is enforced by passing empty `rename_files`, `skip_files`, and
-  `ignoredirectories` overrides to `AKFactory::getUnarchiver()`; Kickstart's defaults rewrite
-  Joomla-specific files and must stay overridden.
-- `percent` is derived from compressed bytes consumed ÷ total on-disk size of all archive parts, and
-  is guaranteed monotonic non-decreasing.
-- A **dry run** (`$dryRun = true`) walks the whole archive writing nothing, with `targetpath` left
-  empty so `ProgressObserver::$fileList` collects archive-relative paths. This backs the "Pick a
-  file or directory" tree; `ignoreErrors` is forced off for scans.
-
-`ProgressObserver::__toString()` returns the FQCN because the engine keys attached observers by
-their string form — it must stay stable and unique.
-
-### PHP ↔ JS boundary
-
-Bindings are registered in `index.php` with dot names (`extractor.begin`, `i18n.setLanguage`, …)
-that Boson expands into nested `window` objects. Every binding body wraps its work in `try`/`catch`
-and returns a **structured result** (`['ok' => bool, 'error' => string]` or a progress array) —
-exceptions must never cross into the JS Promise. `app.js` drives extraction by polling
-`extractor.step()` through `setTimeout`, yielding to the browser between ticks so the UI stays live.
-
-Two platform-specific mechanisms worth knowing before touching `index.php`:
-
-- **Drag-and-drop** has no native Boson event. It is implemented by intercepting the WebView's
-  `file://` navigation attempt, cancelling it, and injecting the path via
-  `window.__akeebaApplyArchive`. This cannot work on macOS (WKWebView hands over contents, not paths).
-- **Launch-with-argument** (file associations) scans `$_SERVER['argv']` for the first readable
-  `.jpa`/`.jps`/`.zip` and exposes it through the `initialArchive()` binding.
-
-### Interface language
-
-`en-GB` is the source of truth. `I18n\LanguageService` resolves the tag (stored override → OS locale
-→ `en-GB`), loads `language/en-GB/en-GB.ini` as the fallback base, then the chosen language on top —
-so a translation may omit keys it doesn't provide. The same catalogue serves both sides: it goes
-into the engine's `AKText` table (so engine errors and warnings are translated) and is injected as
-`window.__akeebaLang` via `scripts->preload`, which runs **before** `app.js` so the UI never flashes
-untranslated keys. `app.js` applies it through `data-i18n`, `data-i18n-placeholder`, and
-`data-i18n-tip` attributes.
-
-Adding a language requires **no code change**: drop `language/<tag>/<tag>.ini` in place with an
-`EXTRACT_LANGUAGE_ENDONYM` key naming the language in its own tongue. Language discovery uses
-`scandir()`, never `glob()` — `glob()` does not support stream wrappers, so a compiled/PHAR build
-would find only `en-GB`.
-
-When you add or change an `en-GB` string, keep the other catalogues in step. Translation rules
-(untranslatable technical tokens, `sprintf` placeholder preservation, the literal `\n` in
-`EXTRACT_PH_EXTRACTLIST`, the ASCII-semicolon restriction in values) live in `build/glossaries/`.
-
-### Compiled-build asset visibility
-
-`boson.json` decides what exists inside a compiled binary. Runtime asset directories must be listed
-under `mount` (currently `public` and `language`) and PHP sources under `build.finder` — a new
-directory read at runtime will work under `php index.php` and silently be missing from every
-compiled build until it is added there.
-
-### Signing
-
-A stock `boson compile` binary cannot be code-signed: the PHP payload is appended after the
-Mach-O/PE signature region. macOS works around this with a patched phpmicro SFX (fetched into the
-gitignored `build/sfx/` by `build/fetch-sfx.sh`) that loads its payload from a sibling file, letting
-packaging split the output into a signable stub. Signing credentials live in the gitignored
-`build/build.properties`; without them builds fall back to ad-hoc/unsigned. Details are in
-`build/readme/01-macos-signing.md` through `04-exe-signing-on-macos.md`.
-
-## Conventions
-
-- PHP 8.4, `boson-php/*` pinned to `^0.19` (pre-1.0 — the API breaks between minor versions).
-- Indentation is **not uniform**: `engine/`, `ExtractorService.php`, and `ProgressObserver.php` use
-  tabs with Allman braces; the newer `src/` files use 4 spaces. Match the file you are editing.
-- Commit subjects are short and imperative, often area-prefixed (`Windows: …`, `Build: …`, `Inno: …`),
-  with a body explaining *why* when the change is non-obvious, and a `Signed-off-by` trailer.
-- `.plans/` is gitignored internal scratch, not part of the deliverable.
-
-## Git: commit and tag outside the sandbox
-
-Commits and tags are always signed, with a key held in 1Password. The 1Password signing agent is reached
-over a local socket that agent sandboxes do not expose, so a sandboxed `git commit` or `git tag` **always**
-fails (e.g. `error: 1Password: Could not connect to socket. Is the agent running?`).
-
-Run every `git commit` and `git tag` **outside the sandbox from the first attempt** — in Claude Code with
-`dangerouslyDisableSandbox: true`, in other harnesses with their equivalent unsandboxed / escalated
-execution. Do not try the sandboxed form first, do not diagnose the failure, and never work around it
-with `--no-gpg-sign`, `-c commit.gpgsign=false` or unsigned tags.
+- Bump the version by adding a `CHANGELOG` entry — never by editing `src/App.php`.
+- `engine/` is **patched locally**, not pristine upstream: never overwrite it when re-syncing from Kickstart.
+- `src/Bootstrap.php` must be required exactly once; do not reorder its `require_once` calls.
+- `public/` is vanilla ES5-style JS with no framework, bundler or npm. Keep it that way.
+- A new runtime asset directory must be added to `boson.json` (`mount` / `build.finder`) or it silently vanishes from compiled builds.
+- Keep every `language/` catalogue in step with `en-GB`.
+- Run every `git commit` and `git tag` outside the sandbox from the first attempt; never use `--no-gpg-sign`.
 
 ## Project memory
 
-Project memory lives in `.claude/memory/`, committed with the code, so that it is shared across machines
-and across agentic harnesses (Claude Code, Codex, Qwen Code, Kimi Code, Junie, …). Read the relevant file
-**before** starting work that matches its trigger:
+Project memory lives in `.claude/memory/`. Read the matching file before starting that kind of work.
 
-| Before you… | Read |
-|---|---|
-| add, change, remove or translate a language string, or change how languages are loaded, picked or packaged | `.claude/memory/translations.md` |
-
-### Recording new memories
-
-This is the **default and only** place for project memory. Do not write memories for this project to a
-harness's private memory store (such as Claude Code's auto-memory under `~/.claude/projects/`); write
-them here instead:
-
-- Add to the existing topic file when one fits; otherwise create a new kebab-case `.md` file named after
-  the topic, and add a row for it to the table above with a concrete trigger.
-- Plain Markdown, no frontmatter. State the rule, then **Why:** (the reason or incident behind it) and
-  **How to apply:**. Link related files with relative Markdown links.
-- Don't record what the code, Git history or an existing `AGENTS.md` already says — update that
-  `AGENTS.md` instead when the rule belongs there. Remove or correct entries that turn out wrong.
-- These files are committed: no secrets, credentials, customer data or personal details.
+| File | Read it when… |
+|------|---------------|
+| [`architecture.md`](.claude/memory/architecture.md) | Before you touch `src/`, `engine/`, `index.php` or `public/`, the engine bootstrap, the extraction protocol (`ExtractorService`), the PHP/JS bindings, or drag-and-drop |
+| [`translations.md`](.claude/memory/translations.md) | Before you add, change, remove or translate a language string, or change how languages are loaded, picked or packaged |
+| [`build-and-packaging.md`](.claude/memory/build-and-packaging.md) | Before you run Composer or Phing build targets, change `boson.json`, or deal with code signing and packaging |
+| [`testing-and-version-bumps.md`](.claude/memory/testing-and-version-bumps.md) | Before you verify a change or bump the version |
+| [`conventions.md`](.claude/memory/conventions.md) | Before you write PHP or JS here (indentation, PHP/Boson versions) or write a commit message |
+| [`git-commit-signing.md`](.claude/memory/git-commit-signing.md) | Before you run `git commit` or `git tag` |
+| [`recording-memories.md`](.claude/memory/recording-memories.md) | Before you add or change a project memory file |

@@ -3,7 +3,7 @@
 Akeeba Extract is NOT a Joomla extension: there is no XML manifest to update when adding a language.
 The catalogues are Joomla-style INI files at `language/<tag>/<tag>.ini`, with `en-GB` as the canonical
 source. The shared translation rules are in `build/glossaries/README.md`; the architecture is in the
-root `AGENTS.md` ("Interface language").
+"Interface language" section at the end of this file.
 
 ## Keep every catalogue at exact key parity
 
@@ -43,3 +43,22 @@ Details beyond the `AGENTS.md` summary, for when you touch the i18n code:
 
 **How to apply:** Read before changing language loading, the picker, settings persistence, or
 packaging of `language/`.
+
+## Interface language
+
+`en-GB` is the source of truth. `I18n\LanguageService` resolves the tag (stored override → OS locale
+→ `en-GB`), loads `language/en-GB/en-GB.ini` as the fallback base, then the chosen language on top —
+so a translation may omit keys it doesn't provide. The same catalogue serves both sides: it goes
+into the engine's `AKText` table (so engine errors and warnings are translated) and is injected as
+`window.__akeebaLang` via `scripts->preload`, which runs **before** `app.js` so the UI never flashes
+untranslated keys. `app.js` applies it through `data-i18n`, `data-i18n-placeholder`, and
+`data-i18n-tip` attributes.
+
+Adding a language requires **no code change**: drop `language/<tag>/<tag>.ini` in place with an
+`EXTRACT_LANGUAGE_ENDONYM` key naming the language in its own tongue. Language discovery uses
+`scandir()`, never `glob()` — `glob()` does not support stream wrappers, so a compiled/PHAR build
+would find only `en-GB`.
+
+When you add or change an `en-GB` string, keep the other catalogues in step. Translation rules
+(untranslatable technical tokens, `sprintf` placeholder preservation, the literal `\n` in
+`EXTRACT_PH_EXTRACTLIST`, the ASCII-semicolon restriction in values) live in `build/glossaries/`.
